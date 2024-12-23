@@ -1,2 +1,0 @@
-# BrainShiftStudio
-looped affirmations app
