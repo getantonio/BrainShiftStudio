@@ -1,0 +1,48 @@
+📦 root
+ ┣ 📂 src
+ ┃ ┣ 📂 app
+ ┃ ┃ ┣ 📂 api
+ ┃ ┃ ┃ ┣ 📂 auth
+ ┃ ┃ ┃ ┃ ┗ 📜 [...nextauth]/route.ts
+ ┃ ┃ ┃ ┣ 📂 affirmations
+ ┃ ┃ ┃ ┃ ┗ 📜 route.ts
+ ┃ ┃ ┃ ┗ 📂 recordings
+ ┃ ┃ ┃   ┗ 📜 route.ts
+ ┃ ┃ ┣ 📂 dashboard
+ ┃ ┃ ┃ ┗ 📜 page.tsx
+ ┃ ┃ ┣ 📜 layout.tsx
+ ┃ ┃ ┗ 📜 page.tsx
+ ┃ ┣ 📂 components
+ ┃ ┃ ┣ 📂 ui
+ ┃ ┃ ┃ ┣ 📜 alert.tsx
+ ┃ ┃ ┃ ┣ 📜 button.tsx
+ ┃ ┃ ┃ ┣ 📜 card.tsx
+ ┃ ┃ ┃ ┣ 📜 input.tsx
+ ┃ ┃ ┃ ┗ 📜 slider.tsx
+ ┃ ┃ ┣ 📂 affirmations
+ ┃ ┃ ┃ ┣ 📜 affirmation-form.tsx
+ ┃ ┃ ┃ ┣ 📜 affirmation-list.tsx
+ ┃ ┃ ┃ ┗ 📜 affirmation-player.tsx
+ ┃ ┃ ┣ 📂 audio
+ ┃ ┃ ┃ ┣ 📜 audio-recorder.tsx
+ ┃ ┃ ┃ ┗ 📜 volume-control.tsx
+ ┃ ┃ ┗ 📂 layout
+ ┃ ┃   ┣ 📜 header.tsx
+ ┃ ┃   ┗ 📜 footer.tsx
+ ┃ ┣ 📂 lib
+ ┃ ┃ ┣ 📜 auth.ts
+ ┃ ┃ ┣ 📜 db.ts
+ ┃ ┃ ┗ 📜 utils.ts
+ ┃ ┣ 📂 types
+ ┃ ┃ ┗ 📜 index.ts
+ ┃ ┗ 📂 styles
+ ┃   ┗ 📜 globals.css
+ ┣ 📜 .env
+ ┣ 📜 .env.example
+ ┣ 📜 .eslintrc.json
+ ┣ 📜 .gitignore
+ ┣ 📜 next.config.js
+ ┣ 📜 package.json
+ ┣ 📜 README.md
+ ┣ 📜 tailwind.config.ts
+ ┗ 📜 tsconfig.json
