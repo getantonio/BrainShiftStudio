@@ -62,7 +62,7 @@ export default function AffirmationsPage() {
                   I am capable of focusing and completing tasks efficiently.
                 </p>
                 <p className="text-gray-700">
-                  Each step I take brings me closer to my goals.
+                   Each step I take brings me closer to my goals.
                 </p>
               </div>
             </div>
