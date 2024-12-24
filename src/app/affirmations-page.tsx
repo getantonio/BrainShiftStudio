@@ -41,13 +41,21 @@ export default function AffirmationsPage() {
       });
       console.log('Audio stream obtained:', stream);
 
-      const mimeType = 'audio/webm;codecs=opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        alert(`MIME type ${mimeType} is not supported in this browser.`);
-        console.error(`MIME type ${mimeType} is not supported.`);
+      // MIME type detection
+      let mimeType = '';
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+        mimeType = 'audio/webm';
+      } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+        mimeType = 'audio/ogg;codecs=opus';
+      } else {
+        alert('Your browser does not support the required audio recording formats.');
+        console.error('No supported MIME types found.');
         return;
       }
 
+      console.log(`Using MIME type: ${mimeType}`);
       mediaRecorderRef.current = new MediaRecorder(stream, {
         mimeType: mimeType,
         audioBitsPerSecond: 128000,
