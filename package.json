@@ -2,16 +2,12 @@
   "name": "brainshiftstudio",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://getantonio.github.io/BrainShiftStudio/",
+  "homepage": "https://yourusername.github.io/your-repo-name",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "react-scripts build",
-    "start": "react-scripts start",
-    "lint": "next lint",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.4",
@@ -21,9 +17,8 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.469.0",
     "next": "15.1.2",
-    "react": "^17.0.2",
-  "react-dom": "^17.0.2",
-  "react-scripts": "4.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
