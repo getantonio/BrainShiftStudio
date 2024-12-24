@@ -1,10 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
-  basePath: '/BrainShiftStudio',
+  basePath: process.env.NODE_ENV === 'production' ? '/BrainShiftStudio' : '',
   images: {
     unoptimized: true,
   },
+  trailingSlash: true,
 }
 
 module.exports = nextConfig
