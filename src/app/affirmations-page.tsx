@@ -11,29 +11,44 @@ export default function AffirmationsPage() {
 
   const startRecording = async () => {
     try {
-      // First check if we have permission
       const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
       
       if (permissionResult.state === 'denied') {
         alert('Please enable microphone access in your browser settings to use this feature.');
         return;
       }
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+  
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        }
+      });
+  
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus',
+        audioBitsPerSecond: 128000
+      });
       chunksRef.current = [];
-
+  
       mediaRecorderRef.current.ondataavailable = (e) => {
-        chunksRef.current.push(e.data);
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
       };
-
+  
       mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl);
+        }
         const url = URL.createObjectURL(audioBlob);
         setAudioUrl(url);
       };
-
-      mediaRecorderRef.current.start();
+  
+      // Record in smaller chunks (250ms)
+      mediaRecorderRef.current.start(250);
       setIsRecording(true);
     } catch (err) {
       console.error('Error accessing microphone:', err);
