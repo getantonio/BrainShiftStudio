@@ -16,7 +16,7 @@ export default function AffirmationsPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [currentAffirmations, setCurrentAffirmations] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -128,7 +128,7 @@ export default function AffirmationsPage() {
                   <SelectValue placeholder="Choose a category..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Categories</SelectItem>
+                  <SelectItem value="all">All Categories</SelectItem>
                   {affirmationCategories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
