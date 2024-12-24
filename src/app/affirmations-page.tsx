@@ -197,14 +197,17 @@ export default function AffirmationsPage() {
               </div>
             )}
 
-            {audioUrl && !isRecording && (
+{audioUrl && !isRecording && (
   <div className="mt-4">
     <h3 className="text-sm font-bold mb-2">Recording Preview:</h3>
     <AudioWaveform 
       audioUrl={audioUrl}
-      onTrimChange={(start, end) => {
-        console.log('Trim changed:', start, end);
-        // Here you can implement the actual audio trimming logic
+      onTrimComplete={(trimmedUrl) => {
+        // Update the audio URL to the trimmed version
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl); // Clean up old URL
+        }
+        setAudioUrl(trimmedUrl);
       }}
     />
     <audio controls className="w-full mt-2">
