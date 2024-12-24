@@ -11,6 +11,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import RecordRTC from 'recordrtc';
+import { URL as NodeURL } from 'url';
 
 export default function AffirmationsPage() {
   const [affirmation, setAffirmation] = useState('');
@@ -47,7 +48,15 @@ export default function AffirmationsPage() {
     if (recorder && isRecording) {
       recorder.stopRecording(() => {
         const blob = recorder.getBlob();
-        const url = URL.createObjectURL(blob);
+        let url;
+        if (typeof URL !== 'undefined' && URL.createObjectURL) {
+          // Browser environment
+          url = URL.createObjectURL(blob);
+        } else if (NodeURL) {
+          // Node.js fallback
+          console.error('URL.createObjectURL is not supported in this environment.');
+          return;
+        }
         setAudioUrl(url);
         console.log('Recording stopped, audio URL created:', url);
       });
