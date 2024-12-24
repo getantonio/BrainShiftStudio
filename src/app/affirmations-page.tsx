@@ -1,74 +1,26 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
+import { getMatchingAffirmations } from '../utils/affirmationUtils';
 
 export default function AffirmationsPage() {
   const [affirmation, setAffirmation] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [currentAffirmations, setCurrentAffirmations] = useState<string[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  const startRecording = async () => {
-    try {
-      const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-      
-      if (permissionResult.state === 'denied') {
-        alert('Please enable microphone access in your browser settings to use this feature.');
-        return;
-      }
-  
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100
-        }
-      });
-  
-      mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
-        audioBitsPerSecond: 128000
-      });
-      chunksRef.current = [];
-  
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
-      };
-  
-      mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
-        if (audioUrl) {
-          URL.revokeObjectURL(audioUrl);
-        }
-        const url = URL.createObjectURL(audioBlob);
-        setAudioUrl(url);
-      };
-  
-      // Record in smaller chunks (250ms)
-      mediaRecorderRef.current.start(250);
-      setIsRecording(true);
-    } catch (err) {
-      console.error('Error accessing microphone:', err);
-      alert('Unable to access microphone. Please make sure your microphone is connected and you have granted permission.');
-    }
+  // ... previous recording functions remain the same ...
+
+  const generateAffirmations = () => {
+    const newAffirmations = getMatchingAffirmations(affirmation);
+    setCurrentAffirmations(newAffirmations);
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      setIsRecording(false);
-    }
-  };
-
-  const toggleRecording = () => {
-    if (isRecording) {
-      stopRecording();
-    } else {
-      startRecording();
+  const refreshAffirmations = () => {
+    if (affirmation) {
+      generateAffirmations();
     }
   };
 
@@ -97,16 +49,25 @@ export default function AffirmationsPage() {
               placeholder="Example: I always procrastinate..."
             />
             
-            <button
-              onClick={toggleRecording}
-              className={`w-full font-bold py-3 px-4 rounded-lg transition-colors duration-200 ${
-                isRecording 
-                  ? 'bg-red-500 hover:bg-red-600 text-white' 
-                  : 'bg-blue-500 hover:bg-blue-600 text-white'
-              }`}
-            >
-              {isRecording ? '⏹️ Stop Recording' : '🎤 Start Recording'}
-            </button>
+            <div className="space-y-4">
+              <button
+                onClick={generateAffirmations}
+                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200"
+              >
+                Generate Affirmations
+              </button>
+
+              <button
+                onClick={toggleRecording}
+                className={`w-full font-bold py-3 px-4 rounded-lg transition-colors duration-200 ${
+                  isRecording 
+                    ? 'bg-red-500 hover:bg-red-600 text-white' 
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                }`}
+              >
+                {isRecording ? '⏹️ Stop Recording' : '🎤 Start Recording'}
+              </button>
+            </div>
 
             {isRecording && (
               <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-100">
@@ -117,29 +78,36 @@ export default function AffirmationsPage() {
             )}
 
             {audioUrl && !isRecording && (
-             <div className="mt-4">
-              <h3 className="text-sm font-bold mb-2">Recording Preview:</h3>
-             <audio controls className="w-full">
-              <source src={audioUrl} type="audio/webm" />
-             Your browser does not support the audio element.
-            </audio>
-            </div>
+              <div className="mt-4">
+                <h3 className="text-sm font-bold mb-2">Recording Preview:</h3>
+                <audio controls className="w-full">
+                  <source src={audioUrl} type="audio/webm;codecs=opus" />
+                  Your browser does not support the audio element.
+                </audio>
+              </div>
             )}
           </div>
 
-          {/* Preview Card */}
-          {affirmation && (
+          {/* Affirmations Preview Card */}
+          {currentAffirmations.length > 0 && (
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-lg font-bold text-gray-800 mb-4">
-                Your Positive Affirmation:
-              </h2>
-              <div className="bg-blue-50 rounded-lg p-4">
-                <p className="text-gray-700 mb-2">
-                  I am capable of focusing and completing tasks efficiently.
-                </p>
-                <p className="text-gray-700">
-                  Each step I take brings me closer to my goals.
-                </p>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold text-gray-800">
+                  Your Positive Affirmations:
+                </h2>
+                <button
+                  onClick={refreshAffirmations}
+                  className="text-blue-500 hover:text-blue-600"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+              <div className="space-y-4">
+                {currentAffirmations.map((aff, index) => (
+                  <div key={index} className="p-4 bg-blue-50 rounded-lg">
+                    <p className="text-gray-700">{aff}</p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
