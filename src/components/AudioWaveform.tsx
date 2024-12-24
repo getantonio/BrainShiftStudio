@@ -1,11 +1,18 @@
+"use client";
+
 import React, { useRef, useEffect, useState } from 'react';
 
-const AudioWaveform = ({ audioUrl, onTrimChange }) => {
-  const canvasRef = useRef(null);
-  const [audioBuffer, setAudioBuffer] = useState(null);
+interface AudioWaveformProps {
+  audioUrl: string;
+  onTrimChange?: (start: number, end: number) => void;
+}
+
+const AudioWaveform: React.FC<AudioWaveformProps> = ({ audioUrl, onTrimChange }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null);
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(100);
-  const [isDragging, setIsDragging] = useState(null);
+  const [isDragging, setIsDragging] = useState<'start' | 'end' | null>(null);
 
   useEffect(() => {
     if (!audioUrl) return;
@@ -14,7 +21,7 @@ const AudioWaveform = ({ audioUrl, onTrimChange }) => {
       try {
         const response = await fetch(audioUrl);
         const arrayBuffer = await response.arrayBuffer();
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const audioContext = new AudioContext();
         const buffer = await audioContext.decodeAudioData(arrayBuffer);
         setAudioBuffer(buffer);
         drawWaveform(buffer);
@@ -26,9 +33,13 @@ const AudioWaveform = ({ audioUrl, onTrimChange }) => {
     loadAudioData();
   }, [audioUrl]);
 
-  const drawWaveform = (buffer) => {
+  const drawWaveform = (buffer: AudioBuffer) => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+    
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
     const data = buffer.getChannelData(0);
     const step = Math.ceil(data.length / canvas.width);
     const amp = canvas.height / 2;
@@ -54,13 +65,16 @@ const AudioWaveform = ({ audioUrl, onTrimChange }) => {
       );
     }
 
-    // Draw trim handles
     drawTrimHandles();
   };
 
   const drawTrimHandles = () => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+    
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
     const handleWidth = 4;
 
     // Draw semi-transparent overlay for trimmed parts
@@ -74,8 +88,10 @@ const AudioWaveform = ({ audioUrl, onTrimChange }) => {
     ctx.fillRect((canvas.width * trimEnd) / 100 - handleWidth/2, 0, handleWidth, canvas.height);
   };
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const startX = (canvas.width * trimStart) / 100;
@@ -88,10 +104,12 @@ const AudioWaveform = ({ audioUrl, onTrimChange }) => {
     }
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDragging || !audioBuffer) return;
 
     const canvas = canvasRef.current;
+    if (!canvas) return;
+
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const percentage = Math.max(0, Math.min(100, (x / canvas.width) * 100));
