@@ -20,7 +20,6 @@ export default function AffirmationsPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  // Recording functions
   const startRecording = async () => {
     try {
       console.log('Requesting microphone permissions...');
@@ -42,8 +41,15 @@ export default function AffirmationsPage() {
       });
       console.log('Audio stream obtained:', stream);
 
+      const mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        alert(`MIME type ${mimeType} is not supported in this browser.`);
+        console.error(`MIME type ${mimeType} is not supported.`);
+        return;
+      }
+
       mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
+        mimeType: mimeType,
         audioBitsPerSecond: 128000,
       });
       console.log('MediaRecorder created:', mediaRecorderRef.current);
@@ -56,7 +62,7 @@ export default function AffirmationsPage() {
       };
 
       mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
+        const audioBlob = new Blob(chunksRef.current, { type: mimeType });
         if (audioUrl) {
           URL.revokeObjectURL(audioUrl);
         }
@@ -70,20 +76,13 @@ export default function AffirmationsPage() {
       console.log('Recording started.');
     } catch (err) {
       console.error('Error accessing microphone:', err);
-    
+
       if (err instanceof Error) {
-        if (err.name === 'NotAllowedError') {
-          alert('Microphone access denied. Please allow access in browser settings.');
-        } else if (err.name === 'NotFoundError') {
-          alert('No microphone found. Please connect a microphone and try again.');
-        } else {
-          alert(`An error occurred: ${err.message}`);
-        }
+        alert(`An error occurred: ${err.message}`);
       } else {
         alert('An unknown error occurred.');
       }
     }
-    
   };
 
   const stopRecording = () => {
