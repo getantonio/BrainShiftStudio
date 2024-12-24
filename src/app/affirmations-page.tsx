@@ -23,25 +23,30 @@ export default function AffirmationsPage() {
   // Recording functions
   const startRecording = async () => {
     try {
+      console.log('Requesting microphone permissions...');
       const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-      
+      console.log('Permission result:', permissionResult.state);
+
       if (permissionResult.state === 'denied') {
         alert('Please enable microphone access in your browser settings to use this feature.');
         return;
       }
 
+      console.log('Requesting audio stream...');
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          sampleRate: 44100
-        }
+          sampleRate: 44100,
+        },
       });
+      console.log('Audio stream obtained:', stream);
 
       mediaRecorderRef.current = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus',
-        audioBitsPerSecond: 128000
+        audioBitsPerSecond: 128000,
       });
+      console.log('MediaRecorder created:', mediaRecorderRef.current);
       chunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (e) => {
@@ -57,13 +62,21 @@ export default function AffirmationsPage() {
         }
         const url = URL.createObjectURL(audioBlob);
         setAudioUrl(url);
+        console.log('Recording stopped, audio URL created:', url);
       };
 
       mediaRecorderRef.current.start(250);
       setIsRecording(true);
+      console.log('Recording started.');
     } catch (err) {
       console.error('Error accessing microphone:', err);
-      alert('Unable to access microphone. Please make sure your microphone is connected and you have granted permission.');
+      if (err.name === 'NotAllowedError') {
+        alert('Microphone access denied. Please allow access in browser settings.');
+      } else if (err.name === 'NotFoundError') {
+        alert('No microphone found. Please connect a microphone and try again.');
+      } else {
+        alert(`An error occurred: ${err.message}`);
+      }
     }
   };
 
@@ -72,6 +85,7 @@ export default function AffirmationsPage() {
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
       setIsRecording(false);
+      console.log('Recording stopped.');
     }
   };
 
