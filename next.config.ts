@@ -5,6 +5,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  assetPrefix: '/BrainShiftStudio/',
+  trailingSlash: true,
 }
 
 module.exports = nextConfig
