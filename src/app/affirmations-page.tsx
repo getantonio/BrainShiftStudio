@@ -1,15 +1,22 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import { getMatchingAffirmations } from '../utils/affirmationUtils';
-import { affirmationCategories } from '../data/affirmations';
+import { getMatchingAffirmations } from '@/utils/affirmationUtils';
+import { affirmationCategories } from '@/data/affirmations';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 
 export default function AffirmationsPage() {
   const [affirmation, setAffirmation] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [currentAffirmations, setCurrentAffirmations] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState(''); // Add this line
+  const [selectedCategory, setSelectedCategory] = useState('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -89,7 +96,7 @@ export default function AffirmationsPage() {
   };
 
   const refreshAffirmations = () => {
-    if (affirmation) {
+    if (affirmation || selectedCategory) {
       generateAffirmations();
     }
   };
@@ -108,32 +115,40 @@ export default function AffirmationsPage() {
 
           {/* Input Card */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            {/* Add this dropdown section */}
+            {/* Category Selection */}
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2">
                 Select a Category
               </label>
-              <select
+              <Select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onValueChange={setSelectedCategory}
               >
-                <option value="">Choose a category...</option>
-                {affirmationCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a category..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Categories</SelectItem>
+                  {affirmationCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <label className="block text-gray-700 text-sm font-bold mb-2">
               What negative self-talk would you like to transform?
             </label>
-            <textarea></textarea>
-             
+            <textarea
+              value={affirmation}
+              onChange={(e) => setAffirmation(e.target.value)}
+              className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-32"
+              placeholder="Enter your thoughts here..."
+            />
             
-            <div className="space-y-4">
+            <div className="space-y-4 mt-4">
               <button
                 onClick={generateAffirmations}
                 className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200"
