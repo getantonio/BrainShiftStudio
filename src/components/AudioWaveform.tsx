@@ -1,304 +1,365 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  PointerEvent,
+} from "react";
+import { Button } from "@/components/ui/button";
 
+/**
+ * AudioWaveformProps:
+ * - `audioUrl`: A URL (or Blob URL) to the audio file
+ * - `onTrimComplete`: Optional callback after trimming completes,
+ *   which receives the newly trimmed audio URL.
+ */
 interface AudioWaveformProps {
   audioUrl: string;
-  onTrimComplete?: (trimmedAudioUrl: string) => void;
+  onTrimComplete?: (trimmedUrl: string) => void;
 }
 
-const AudioWaveform: React.FC<AudioWaveformProps> = ({ audioUrl, onTrimComplete }) => {
+const AudioWaveform: React.FC<AudioWaveformProps> = ({
+  audioUrl,
+  onTrimComplete,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Decoded audio data
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null);
+
+  // Trim boundaries (0–100%).
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(100);
-  const [isDragging, setIsDragging] = useState<'start' | 'end' | null>(null);
-  const [showConfirm, setShowConfirm] = useState(false);
 
-  useEffect(() => {
-    if (!audioUrl) return;
+  // Track which handle is being dragged
+  const [draggingHandle, setDraggingHandle] = useState<"start" | "end" | null>(
+    null
+  );
 
-    const loadAudioData = async () => {
-      try {
-        const response = await fetch(audioUrl);
-        const arrayBuffer = await response.arrayBuffer();
-        const audioContext = new AudioContext();
-        const buffer = await audioContext.decodeAudioData(arrayBuffer);
-        setAudioBuffer(buffer);
-        drawWaveform(buffer);
-      } catch (error) {
-        console.error('Error loading audio:', error);
-      }
-    };
+  // Whether to show "Confirm" and "Reset" buttons
+  const [showControls, setShowControls] = useState(false);
 
-    loadAudioData();
-  }, [audioUrl]);
+  /**
+   * drawOverlayAndHandles:
+   * Draws the semi-transparent overlay and thick blue handles.
+   * No external dependencies => empty dep array => stable reference.
+   */
+  const drawOverlayAndHandles = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      startPercent: number,
+      endPercent: number
+    ) => {
+      const { width, height } = ctx.canvas;
+      const startX = (startPercent / 100) * width;
+      const endX = (endPercent / 100) * width;
 
-  const drawWaveform = (buffer: AudioBuffer) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+      // Overlay for trimmed region
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.fillRect(0, 0, startX, height);
+      ctx.fillRect(endX, 0, width - endX, height);
 
-    const data = buffer.getChannelData(0);
-    const step = Math.ceil(data.length / canvas.width);
-    const amp = canvas.height / 2;
+      // Thick handles
+      const handleWidth = 16;
+      ctx.fillStyle = "#00d2ff"; // bright cyan for the handles
+      // left handle
+      ctx.fillRect(startX - handleWidth / 2, 0, handleWidth, height);
+      // right handle
+      ctx.fillRect(endX - handleWidth / 2, 0, handleWidth, height);
 
-    // Clear the canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw background grid
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-    ctx.beginPath();
-    for (let i = 0; i < canvas.width; i += 50) {
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i, canvas.height);
-    }
-    ctx.stroke();
-
-    // Draw waveform
-    ctx.fillStyle = 'rgb(59, 130, 246)'; // Blue color
-    for (let i = 0; i < canvas.width; i++) {
-      let min = 1.0;
-      let max = -1.0;
-
-      for (let j = 0; j < step; j++) {
-        const datum = data[i * step + j];
-        if (datum < min) min = datum;
-        if (datum > max) max = datum;
-      }
-
-      ctx.fillRect(
-        i,
-        (1 + min) * amp,
-        2, // Slightly thicker bars
-        Math.max(2, (max - min) * amp)
-      );
-    }
-
-    drawTrimHandles();
-  };
-
-  const drawTrimHandles = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const handleWidth = 20; // Increased handle width
-    const handleHeight = canvas.height;
-
-    // Draw semi-transparent overlay for trimmed parts
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.fillRect(0, 0, (canvas.width * trimStart) / 100, canvas.height);
-    ctx.fillRect((canvas.width * trimEnd) / 100, 0, canvas.width, canvas.height);
-
-    // Draw trim handles with a more visible design
-    const drawHandle = (x: number) => {
-      // Draw handle bar with wider width
-      ctx.fillStyle = 'rgb(59, 130, 246)';
-      ctx.fillRect(x - handleWidth/2, 0, handleWidth, handleHeight);
-      
-      // Draw grip lines
-      ctx.fillStyle = 'white';
+      // "Grip" dots on each handle
+      ctx.fillStyle = "#333"; // darker color for visible contrast
       for (let i = 0; i < 3; i++) {
-        ctx.fillRect(
-          x - 1 + (i * 5) - handleWidth/2 + 5, // Increased spacing
-          handleHeight/2 - 20,  // Longer lines
-          3,  // Thicker lines
-          40  // Longer lines
-        );
+        const offsetY = height / 2 - 12 + i * 12;
+        // left handle
+        ctx.fillRect(startX - handleWidth / 2 + 4, offsetY, 4, 4);
+        // right handle
+        ctx.fillRect(endX - handleWidth / 2 + 4, offsetY, 4, 4);
       }
-    };
+    },
+    []
+  );
 
-    drawHandle((canvas.width * trimStart) / 100);
-    drawHandle((canvas.width * trimEnd) / 100);
-  };
+  /**
+   * drawWaveform:
+   * Draws the waveform in green, with a blue gradient background,
+   * then calls `drawOverlayAndHandles`.
+   *
+   * Must include `drawOverlayAndHandles` in dep array, since it's used here.
+   */
+  const drawWaveform = useCallback(
+    (buffer: AudioBuffer, startPercent: number, endPercent: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+      // Fill canvas with a dark blue gradient
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, "#152545");
+      gradient.addColorStop(1, "#1f3461");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const rect = canvas.getBoundingClientRect();
+      // Draw the waveform in green
+      const data = buffer.getChannelData(0); // just first channel
+      const step = Math.ceil(data.length / canvas.width);
+      const amp = canvas.height / 2;
+
+      ctx.strokeStyle = "green";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+
+      for (let i = 0; i < canvas.width; i++) {
+        let min = 1.0;
+        let max = -1.0;
+        for (let j = 0; j < step; j++) {
+          const idx = i * step + j;
+          if (idx < data.length) {
+            const val = data[idx];
+            if (val < min) min = val;
+            if (val > max) max = val;
+          }
+        }
+        const x = i;
+        const y1 = (1 + min) * amp;
+        const y2 = (1 + max) * amp;
+        ctx.moveTo(x, y1);
+        ctx.lineTo(x, y2);
+      }
+      ctx.stroke();
+
+      // Draw overlay + handles
+      drawOverlayAndHandles(ctx, startPercent, endPercent);
+    },
+    [drawOverlayAndHandles]
+  );
+
+  /**
+   * useEffect: When `audioUrl` changes, fetch & decode the audio,
+   * then draw the waveform from 0–100%.
+   *
+   * Must include `drawWaveform` in dependency array to fix the ESLint warning.
+   */
+  useEffect(() => {
+    if (!audioUrl) {
+      setAudioBuffer(null);
+      return;
+    }
+
+    (async () => {
+      try {
+        const resp = await fetch(audioUrl);
+        const arrayBuf = await resp.arrayBuffer();
+        const audioCtx = new AudioContext();
+        const decoded = await audioCtx.decodeAudioData(arrayBuf);
+        setAudioBuffer(decoded);
+        setTrimStart(0);
+        setTrimEnd(100);
+        setShowControls(false);
+        drawWaveform(decoded, 0, 100);
+      } catch (err) {
+        console.error("Error decoding audio:", err);
+      }
+    })();
+  }, [audioUrl, drawWaveform]);
+
+  // Handle pointer events for dragging
+  const handlePointerDown = (e: PointerEvent<HTMLCanvasElement>) => {
+    if (!canvasRef.current || !audioBuffer) return;
+    const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const startX = (canvas.width * trimStart) / 100;
-    const endX = (canvas.width * trimEnd) / 100;
 
-    if (Math.abs(x - startX) < 25) { // Increased hit area
-      setIsDragging('start');
-    } else if (Math.abs(x - endX) < 25) { // Increased hit area
-      setIsDragging('end');
+    const startX = (trimStart / 100) * rect.width;
+    const endX = (trimEnd / 100) * rect.width;
+    const handleHitRange = 20;
+
+    if (Math.abs(x - startX) < handleHitRange) {
+      setDraggingHandle("start");
+    } else if (Math.abs(x - endX) < handleHitRange) {
+      setDraggingHandle("end");
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDragging || !audioBuffer) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
+  const handlePointerMove = (e: PointerEvent<HTMLCanvasElement>) => {
+    if (!draggingHandle || !canvasRef.current || !audioBuffer) return;
+    const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const percentage = Math.max(0, Math.min(100, (x / canvas.width) * 100));
+    const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
 
-    if (isDragging === 'start' && percentage < trimEnd - 5) {
-      setTrimStart(percentage);
-      setShowConfirm(true);
-    } else if (isDragging === 'end' && percentage > trimStart + 5) {
-      setTrimEnd(percentage);
-      setShowConfirm(true);
+    if (draggingHandle === "start") {
+      // enforce a minimum 5% gap
+      if (percent < trimEnd - 5) {
+        setTrimStart(percent);
+        setShowControls(true);
+        drawWaveform(audioBuffer, percent, trimEnd);
+      }
+    } else {
+      // draggingHandle === 'end'
+      if (percent > trimStart + 5) {
+        setTrimEnd(percent);
+        setShowControls(true);
+        drawWaveform(audioBuffer, trimStart, percent);
+      }
     }
-
-    drawWaveform(audioBuffer);
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(null);
+  const handlePointerUp = () => {
+    setDraggingHandle(null);
   };
 
-  const trimAudio = async () => {
+  // Reset everything to full audio
+  const handleReset = () => {
     if (!audioBuffer) return;
+    setTrimStart(0);
+    setTrimEnd(100);
+    setShowControls(false);
+    drawWaveform(audioBuffer, 0, 100);
+  };
 
+  // Confirm Trim: produce a new Blob URL containing just the selected portion
+  const handleConfirmTrim = async () => {
+    if (!audioBuffer) return;
     try {
-      // Create new AudioContext
       const ctx = new AudioContext();
-      
-      // Calculate trim points in seconds
       const duration = audioBuffer.duration;
-      const startTime = (trimStart / 100) * duration;
-      const endTime = (trimEnd / 100) * duration;
-      const trimmedLength = Math.floor((endTime - startTime) * audioBuffer.sampleRate);
+      const startSec = (trimStart / 100) * duration;
+      const endSec = (trimEnd / 100) * duration;
+      const trimmedLength = Math.floor(
+        (endSec - startSec) * audioBuffer.sampleRate
+      );
 
-      // Create new buffer for trimmed audio
-      const trimmedAudioBuffer = ctx.createBuffer(
+      const newBuffer = ctx.createBuffer(
         audioBuffer.numberOfChannels,
         trimmedLength,
         audioBuffer.sampleRate
       );
 
-      // Copy the trimmed portion
+      // Copy portion
       for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
-        const channelData = audioBuffer.getChannelData(channel);
-        const trimmedData = trimmedAudioBuffer.getChannelData(channel);
-        const startOffset = Math.floor(startTime * audioBuffer.sampleRate);
+        const src = audioBuffer.getChannelData(channel);
+        const dest = newBuffer.getChannelData(channel);
+        const startOffset = Math.floor(startSec * audioBuffer.sampleRate);
         for (let i = 0; i < trimmedLength; i++) {
-          trimmedData[i] = channelData[startOffset + i];
+          dest[i] = src[startOffset + i];
         }
       }
 
-      // Convert trimmed buffer to blob
+      // Convert to WAV
       const offlineCtx = new OfflineAudioContext(
-        trimmedAudioBuffer.numberOfChannels,
+        newBuffer.numberOfChannels,
         trimmedLength,
-        trimmedAudioBuffer.sampleRate
+        newBuffer.sampleRate
       );
-      
       const source = offlineCtx.createBufferSource();
-      source.buffer = trimmedAudioBuffer;
+      source.buffer = newBuffer;
       source.connect(offlineCtx.destination);
       source.start();
 
-      const renderedBuffer = await offlineCtx.startRendering();
-      const trimmedBlob = await audioBufferToWav(renderedBuffer);
+      const rendered = await offlineCtx.startRendering();
+      const trimmedBlob = audioBufferToWav(rendered);
       const trimmedUrl = URL.createObjectURL(trimmedBlob);
 
+      // Fire the callback if provided
       onTrimComplete?.(trimmedUrl);
-      setShowConfirm(false);
+      setShowControls(false);
     } catch (error) {
-      console.error('Error trimming audio:', error);
+      console.error("Error trimming audio:", error);
     }
   };
 
-  const handleConfirmTrim = () => {
-    trimAudio();
+  // Convert AudioBuffer -> WAV
+  const audioBufferToWav = (buffer: AudioBuffer): Blob => {
+    const numOfChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+
+    // Interleave channels
+    const result = interleave(buffer);
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numOfChannels * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = result.length * bytesPerSample;
+    const bufferSize = 44 + dataSize;
+    const view = new DataView(new ArrayBuffer(bufferSize));
+
+    /* RIFF chunk descriptor */
+    writeString(view, 0, "RIFF");
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(view, 8, "WAVE");
+
+    /* FMT sub-chunk */
+    writeString(view, 12, "fmt ");
+    view.setUint32(16, 16, true); // Subchunk1Size
+    view.setUint16(20, format, true); // AudioFormat
+    view.setUint16(22, numOfChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+
+    /* data sub-chunk */
+    writeString(view, 36, "data");
+    view.setUint32(40, dataSize, true);
+
+    let offset = 44;
+    for (let i = 0; i < result.length; i++) {
+      const s = Math.max(-1, Math.min(1, result[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      offset += 2;
+    }
+
+    return new Blob([view], { type: "audio/wav" });
   };
 
-  const audioBufferToWav = async (buffer: AudioBuffer): Promise<Blob> => {
-    const length = buffer.length * buffer.numberOfChannels * 2;
-    const view = new DataView(new ArrayBuffer(44 + length));
+  // Interleave multi-channel data
+  const interleave = (buffer: AudioBuffer) => {
+    const numOfChannels = buffer.numberOfChannels;
+    const length = buffer.length * numOfChannels;
+    const data = new Float32Array(length);
 
-    // Write WAV header
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + length, true);
-    writeString(view, 8, 'WAVE');
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, buffer.numberOfChannels, true);
-    view.setUint32(24, buffer.sampleRate, true);
-    view.setUint32(28, buffer.sampleRate * buffer.numberOfChannels * 2, true);
-    view.setUint16(32, buffer.numberOfChannels * 2, true);
-    view.setUint16(34, 16, true);
-    writeString(view, 36, 'data');
-    view.setUint32(40, length, true);
-
-    // Write audio data
-    const offset = 44;
-    const channels = Array.from({ length: buffer.numberOfChannels }, (_, i) => 
-      buffer.getChannelData(i)
-    );
-
+    let index = 0;
     for (let i = 0; i < buffer.length; i++) {
-      for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-        const sample = Math.max(-1, Math.min(1, channels[channel][i]));
-        view.setInt16(offset + (i * buffer.numberOfChannels + channel) * 2, 
-          sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      for (let ch = 0; ch < numOfChannels; ch++) {
+        data[index++] = buffer.getChannelData(ch)[i];
       }
     }
-
-    return new Blob([view], { type: 'audio/wav' });
+    return data;
   };
 
-  const writeString = (view: DataView, offset: number, string: string) => {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
+  const writeString = (view: DataView, offset: number, str: string) => {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
     }
   };
 
   return (
-    <div className="space-y-2">
-      <div className="relative w-full h-32 bg-blue-50 rounded-lg overflow-hidden">
+    <div className="space-y-4">
+      {/* Waveform canvas */}
+      <div className="relative overflow-hidden rounded-lg" style={{ height: "150px" }}>
         <canvas
           ref={canvasRef}
           width={800}
-          height={128}
-          className="w-full h-full cursor-col-resize"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
+          height={150}
+          className="w-full h-[150px] cursor-col-resize touch-none"
+          style={{ touchAction: "none" }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
         />
-        
-        {/* Trim indicators */}
-        <div className="absolute bottom-2 left-2 text-xs font-mono bg-black/50 text-white px-2 py-1 rounded">
-          {trimStart.toFixed(1)}%
-        </div>
-        <div className="absolute bottom-2 right-2 text-xs font-mono bg-black/50 text-white px-2 py-1 rounded">
-          {trimEnd.toFixed(1)}%
-        </div>
       </div>
 
-      {showConfirm && (
+      {/* Confirm/Reset Buttons */}
+      {showControls && (
         <div className="flex justify-end space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setTrimStart(0);
-              setTrimEnd(100);
-              setShowConfirm(false);
-              if (audioBuffer) drawWaveform(audioBuffer);
-            }}
-          >
+          <Button variant="outline" size="sm" onClick={handleReset}>
             Reset
           </Button>
-          <Button
-            size="sm"
-            onClick={handleConfirmTrim}
-          >
+          <Button size="sm" onClick={handleConfirmTrim}>
             Confirm Trim
           </Button>
         </div>
