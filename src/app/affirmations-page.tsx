@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { getMatchingAffirmations } from '@/utils/affirmationUtils';
 import { affirmationCategories } from '@/data/affirmations';
+import AudioWaveform from '@/components/AudioWaveform';
 import { 
   Select, 
   SelectContent, 
@@ -197,14 +198,21 @@ export default function AffirmationsPage() {
             )}
 
             {audioUrl && !isRecording && (
-              <div className="mt-4">
-                <h3 className="text-sm font-bold mb-2">Recording Preview:</h3>
-                <audio controls className="w-full">
-                  <source src={audioUrl} type="audio/webm;codecs=opus" />
-                  Your browser does not support the audio element.
-                </audio>
-              </div>
-            )}
+  <div className="mt-4">
+    <h3 className="text-sm font-bold mb-2">Recording Preview:</h3>
+    <AudioWaveform 
+      audioUrl={audioUrl}
+      onTrimChange={(start, end) => {
+        console.log('Trim changed:', start, end);
+        // Here you can implement the actual audio trimming logic
+      }}
+    />
+    <audio controls className="w-full mt-2">
+      <source src={audioUrl} type="audio/webm;codecs=opus" />
+      Your browser does not support the audio element.
+    </audio>
+  </div>
+)}
           </div>
 
           {/* Affirmations Preview Card */}
