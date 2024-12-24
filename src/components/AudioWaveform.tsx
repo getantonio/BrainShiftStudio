@@ -88,7 +88,7 @@ const AudioWaveform: React.FC<AudioWaveformProps> = ({ audioUrl, onTrimComplete 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const handleWidth = 8; // Wider handles
+    const handleWidth = 20; // Increased handle width
     const handleHeight = canvas.height;
 
     // Draw semi-transparent overlay for trimmed parts
@@ -98,7 +98,7 @@ const AudioWaveform: React.FC<AudioWaveformProps> = ({ audioUrl, onTrimComplete 
 
     // Draw trim handles with a more visible design
     const drawHandle = (x: number) => {
-      // Draw handle bar
+      // Draw handle bar with wider width
       ctx.fillStyle = 'rgb(59, 130, 246)';
       ctx.fillRect(x - handleWidth/2, 0, handleWidth, handleHeight);
       
@@ -106,10 +106,10 @@ const AudioWaveform: React.FC<AudioWaveformProps> = ({ audioUrl, onTrimComplete 
       ctx.fillStyle = 'white';
       for (let i = 0; i < 3; i++) {
         ctx.fillRect(
-          x - 1 + (i * 3) - handleWidth/2 + 2,
-          handleHeight/2 - 15,
-          2,
-          30
+          x - 1 + (i * 5) - handleWidth/2 + 5, // Increased spacing
+          handleHeight/2 - 20,  // Longer lines
+          3,  // Thicker lines
+          40  // Longer lines
         );
       }
     };
@@ -127,9 +127,9 @@ const AudioWaveform: React.FC<AudioWaveformProps> = ({ audioUrl, onTrimComplete 
     const startX = (canvas.width * trimStart) / 100;
     const endX = (canvas.width * trimEnd) / 100;
 
-    if (Math.abs(x - startX) < 15) { // Increased hit area
+    if (Math.abs(x - startX) < 25) { // Increased hit area
       setIsDragging('start');
-    } else if (Math.abs(x - endX) < 15) { // Increased hit area
+    } else if (Math.abs(x - endX) < 25) { // Increased hit area
       setIsDragging('end');
     }
   };
@@ -216,7 +216,6 @@ const AudioWaveform: React.FC<AudioWaveformProps> = ({ audioUrl, onTrimComplete 
     trimAudio();
   };
 
-  // Helper function to convert AudioBuffer to WAV blob
   const audioBufferToWav = async (buffer: AudioBuffer): Promise<Blob> => {
     const length = buffer.length * buffer.numberOfChannels * 2;
     const view = new DataView(new ArrayBuffer(44 + length));

@@ -20,6 +20,27 @@ export default function AffirmationsPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const getSupportedMimeType = () => {
+    const types = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4;codecs=opus',
+      'audio/mp4',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+      'audio/wav',
+    ];
+  
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        console.log('Supported type found:', type);
+        return type;
+      }
+    }
+  
+    console.log('No supported types found, using default');
+    return '';
+  };
 
   // Recording functions
   const startRecording = async () => {
@@ -27,12 +48,12 @@ export default function AffirmationsPage() {
       console.log('Requesting microphone permissions...');
       const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
       console.log('Permission result:', permissionResult.state);
-
+  
       if (permissionResult.state === 'denied') {
         alert('Please enable microphone access in your browser settings to use this feature.');
         return;
       }
-
+  
       console.log('Requesting audio stream...');
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -42,22 +63,26 @@ export default function AffirmationsPage() {
         },
       });
       console.log('Audio stream obtained:', stream);
-
+  
+      // Check for supported MIME types
+      const mimeType = getSupportedMimeType();
+      console.log('Using MIME type:', mimeType);
+  
       mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
+        mimeType: mimeType || undefined,
         audioBitsPerSecond: 128000,
       });
       console.log('MediaRecorder created:', mediaRecorderRef.current);
       chunksRef.current = [];
-
+  
       mediaRecorderRef.current.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
       };
-
+  
       mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
+        const audioBlob = new Blob(chunksRef.current, { type: mimeType || 'audio/webm;codecs=opus' });
         if (audioUrl) {
           URL.revokeObjectURL(audioUrl);
         }
@@ -65,7 +90,7 @@ export default function AffirmationsPage() {
         setAudioUrl(url);
         console.log('Recording stopped, audio URL created:', url);
       };
-
+  
       mediaRecorderRef.current.start(250);
       setIsRecording(true);
       console.log('Recording started.');
@@ -77,14 +102,15 @@ export default function AffirmationsPage() {
           alert('Microphone access denied. Please allow access in browser settings.');
         } else if (err.name === 'NotFoundError') {
           alert('No microphone found. Please connect a microphone and try again.');
+        } else if (err.name === 'NotSupportedError') {
+          alert('Audio recording is not supported in this browser. Please try using a modern browser like Chrome, Firefox, or Safari.');
         } else {
           alert(`An error occurred: ${err.message}`);
         }
       } else {
-        alert('An unknown error occurred.');
+        alert('An unknown error occurred while trying to access the microphone.');
       }
     }
-    
   };
 
   const stopRecording = () => {
