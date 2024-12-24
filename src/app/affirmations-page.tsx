@@ -70,14 +70,20 @@ export default function AffirmationsPage() {
       console.log('Recording started.');
     } catch (err) {
       console.error('Error accessing microphone:', err);
-      if (err.name === 'NotAllowedError') {
-        alert('Microphone access denied. Please allow access in browser settings.');
-      } else if (err.name === 'NotFoundError') {
-        alert('No microphone found. Please connect a microphone and try again.');
+    
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError') {
+          alert('Microphone access denied. Please allow access in browser settings.');
+        } else if (err.name === 'NotFoundError') {
+          alert('No microphone found. Please connect a microphone and try again.');
+        } else {
+          alert(`An error occurred: ${err.message}`);
+        }
       } else {
-        alert(`An error occurred: ${err.message}`);
+        alert('An unknown error occurred.');
       }
     }
+    
   };
 
   const stopRecording = () => {
