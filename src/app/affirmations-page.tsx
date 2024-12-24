@@ -2,12 +2,14 @@
 
 import React, { useState, useRef } from 'react';
 import { getMatchingAffirmations } from '../utils/affirmationUtils';
+import { affirmationCategories } from '../data/affirmations';
 
 export default function AffirmationsPage() {
   const [affirmation, setAffirmation] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [currentAffirmations, setCurrentAffirmations] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState(''); // Add this line
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -75,7 +77,14 @@ export default function AffirmationsPage() {
   };
 
   const generateAffirmations = () => {
-    const newAffirmations = getMatchingAffirmations(affirmation);
+    const newAffirmations = selectedCategory
+      ? affirmationCategories
+          .find(cat => cat.id === selectedCategory)
+          ?.affirmations
+          .map(a => a.text)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 5) || []
+      : getMatchingAffirmations(affirmation);
     setCurrentAffirmations(newAffirmations);
   };
 
@@ -99,16 +108,30 @@ export default function AffirmationsPage() {
 
           {/* Input Card */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+            {/* Add this dropdown section */}
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Select a Category
+              </label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Choose a category...</option>
+                {affirmationCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <label className="block text-gray-700 text-sm font-bold mb-2">
               What negative self-talk would you like to transform?
             </label>
-            <textarea
-              value={affirmation}
-              onChange={(e) => setAffirmation(e.target.value)}
-              className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-              rows={4}
-              placeholder="Example: I always procrastinate..."
-            />
+            <textarea></textarea>
+             
             
             <div className="space-y-4">
               <button
