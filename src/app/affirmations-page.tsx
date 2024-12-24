@@ -51,7 +51,7 @@ export default function AffirmationsPage() {
             )}
           </div>
 
-          {/* Preview Card - Only shows when there's input */}
+          {/* Preview Card */}
           {affirmation && (
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-lg font-bold text-gray-800 mb-4">

@@ -1,11 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
-  basePath: '/BrainShiftStudio',
+  basePath: process.env.NODE_ENV === 'production' ? '/BrainShiftStudio' : '',
   images: {
     unoptimized: true,
   },
-  assetPrefix: '/BrainShiftStudio/',
+  assetPrefix: process.env.NODE_ENV === 'production' ? '/BrainShiftStudio/' : '',
   trailingSlash: true,
 }
 
