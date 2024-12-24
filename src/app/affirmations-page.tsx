@@ -1,10 +1,61 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 export default function AffirmationsPage() {
   const [affirmation, setAffirmation] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const startRecording = async () => {
+    try {
+      // First check if we have permission
+      const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      
+      if (permissionResult.state === 'denied') {
+        alert('Please enable microphone access in your browser settings to use this feature.');
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      chunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        chunksRef.current.push(e.data);
+      };
+
+      mediaRecorderRef.current.onstop = () => {
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+      alert('Unable to access microphone. Please make sure your microphone is connected and you have granted permission.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      setIsRecording(false);
+    }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
@@ -32,7 +83,7 @@ export default function AffirmationsPage() {
             />
             
             <button
-              onClick={() => setIsRecording(!isRecording)}
+              onClick={toggleRecording}
               className={`w-full font-bold py-3 px-4 rounded-lg transition-colors duration-200 ${
                 isRecording 
                   ? 'bg-red-500 hover:bg-red-600 text-white' 
@@ -48,6 +99,16 @@ export default function AffirmationsPage() {
                   Recording in progress...
                 </p>
               </div>
+            )}
+
+            {audioUrl && !isRecording && (
+             <div className="mt-4">
+              <h3 className="text-sm font-bold mb-2">Recording Preview:</h3>
+             <audio controls className="w-full">
+              <source src={audioUrl} type="audio/webm" />
+             Your browser does not support the audio element.
+            </audio>
+            </div>
             )}
           </div>
 
