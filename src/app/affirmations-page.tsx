@@ -10,8 +10,6 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import RecordRTC from 'recordrtc';
-import { URL as NodeURL } from 'url';
 
 export default function AffirmationsPage() {
   const [affirmation, setAffirmation] = useState('');
@@ -19,50 +17,80 @@ export default function AffirmationsPage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [currentAffirmations, setCurrentAffirmations] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  let recorder = null;
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const startRecording = async () => {
     try {
       console.log('Requesting microphone permissions...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      console.log('Permission result:', permissionResult.state);
+
+      if (permissionResult.state === 'denied') {
+        alert('Please enable microphone access in your browser settings to use this feature.');
+        return;
+      }
+
+      console.log('Requesting audio stream...');
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100,
+        },
+      });
       console.log('Audio stream obtained:', stream);
 
-      recorder = new RecordRTC(stream, {
-        type: 'audio',
-        mimeType: 'audio/wav',
-        recorderType: RecordRTC.StereoAudioRecorder,
-        numberOfAudioChannels: 1,
-        sampleRate: 44100,
-      });
+      const mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        alert(`MIME type ${mimeType} is not supported in this browser.`);
+        console.error(`MIME type ${mimeType} is not supported.`);
+        return;
+      }
 
-      recorder.startRecording();
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: mimeType,
+        audioBitsPerSecond: 128000,
+      });
+      console.log('MediaRecorder created:', mediaRecorderRef.current);
+      chunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorderRef.current.onstop = () => {
+        const audioBlob = new Blob(chunksRef.current, { type: mimeType });
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl);
+        }
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
+        console.log('Recording stopped, audio URL created:', url);
+      };
+
+      mediaRecorderRef.current.start(250);
       setIsRecording(true);
       console.log('Recording started.');
     } catch (err) {
       console.error('Error accessing microphone:', err);
-      alert('Unable to access the microphone. Please check your permissions.');
+
+      if (err instanceof Error) {
+        alert(`An error occurred: ${err.message}`);
+      } else {
+        alert('An unknown error occurred.');
+      }
     }
   };
 
   const stopRecording = () => {
-    if (recorder && isRecording) {
-      recorder.stopRecording(() => {
-        const blob = recorder.getBlob();
-        let url;
-        if (typeof URL !== 'undefined' && URL.createObjectURL) {
-          // Browser environment
-          url = URL.createObjectURL(blob);
-        } else if (NodeURL) {
-          // Node.js fallback
-          console.error('URL.createObjectURL is not supported in this environment.');
-          return;
-        }
-        setAudioUrl(url);
-        console.log('Recording stopped, audio URL created:', url);
-      });
-
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
       setIsRecording(false);
-      recorder = null;
+      console.log('Recording stopped.');
     }
   };
 
@@ -171,7 +199,7 @@ export default function AffirmationsPage() {
               <div className="mt-4">
                 <h3 className="text-sm font-bold mb-2">Recording Preview:</h3>
                 <audio controls className="w-full">
-                  <source src={audioUrl} type="audio/wav" />
+                  <source src={audioUrl} type="audio/webm;codecs=opus" />
                   Your browser does not support the audio element.
                 </audio>
               </div>
