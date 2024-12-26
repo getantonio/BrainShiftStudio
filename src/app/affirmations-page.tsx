@@ -1,9 +1,12 @@
-"use client";
+'use client';
 
-import React, { useState, useRef } from 'react';
-import { getMatchingAffirmations } from '@/utils/affirmationUtils';
-import { affirmationCategories } from '@/data/affirmations';
-import AudioWaveform from '@/components/AudioWaveform';
+import React, { useState, useRef, useEffect } from "react";
+import AudioWaveform from "@/components/AudioWaveform";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { TrashIcon } from "lucide-react";
+import { getRandomAffirmations } from "@/utils/affirmationUtils";
+import { affirmationCategories } from "@/data/affirmations";
 import {
   Select,
   SelectContent,
@@ -11,120 +14,185 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAudio } from "@/contexts/AudioContext";
+import { LiveWaveform } from "@/components/LiveWaveform";
 
-// Simplified: removed unused parameter
-async function getAISuggestions(): Promise<string[]> {
-  // If you have an actual API call, place it here:
-  return [
-    '“I am worthy of success in all aspects of my life.”',
-    '“I confidently step into my future with positivity.”',
-  ];
+const DARK_MODE_CLASS = "dark";
+
+interface GuideSection {
+  title: string;
+  content: string[];
 }
 
-// Simplified: removed unused parameters
-function generateVoiceFromSample(): Promise<Blob> {
-  // Placeholder that returns a dummy WAV blob
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(new Blob([], { type: 'audio/wav' }));
-    }, 2000);
-  });
-}
+const SELF_HYPNOSIS_GUIDE: GuideSection[] = [
+  {
+    title: "Understanding Self-Hypnosis",
+    content: [
+      "Find a quiet, comfortable space",
+      "Set aside 15-20 minutes of uninterrupted time",
+      "Approach with an open and receptive mindset",
+      "Remember: you are always in control"
+    ]
+  },
+  {
+    title: "The Power of Your Own Voice",
+    content: [
+      "Speak in a calm, soothing tone",
+      "Use clear, positive language",
+      "Maintain a steady rhythm",
+      "Record in a quiet environment"
+    ]
+  },
+  {
+    title: "Set Your Intention",
+    content: [
+      "Define your specific goal",
+      "Frame intentions positively",
+      "Be realistic and specific",
+      "Write down your intentions before recording"
+    ]
+  },
+  {
+    title: "Choose a Quiet Environment",
+    content: [
+      "Minimize background noise",
+      "Turn off phone notifications",
+      "Use sound dampening if possible",
+      "Consider recording during quiet hours"
+    ]
+  },
+  {
+    title: "Relaxation Process",
+    content: [
+      "Start with deep breathing",
+      "Progressive muscle relaxation",
+      "Visualize a peaceful place",
+      "Use countdown techniques"
+    ]
+  },
+  {
+    title: "Mental Focus & Visualization",
+    content: [
+      "Create vivid mental images",
+      "Engage all your senses",
+      "Stay present in the moment",
+      "Practice regular visualization"
+    ]
+  },
+  {
+    title: "Voice Recording Techniques",
+    content: [
+      "Speak slightly slower than normal",
+      "Use natural pauses",
+      "Maintain consistent volume",
+      "End recordings with gentle awakening"
+    ]
+  },
+  {
+    title: "Building a Practice",
+    content: [
+      "Start with short sessions",
+      "Practice regularly",
+      "Keep a progress journal",
+      "Adjust techniques as needed"
+    ]
+  },
+  {
+    title: "Subliminal Enhancement",
+    content: [
+      "Layer positive affirmations",
+      "Use background sounds mindfully",
+      "Consider binaural beats",
+      "Test different audio combinations"
+    ]
+  }
+];
 
 export default function AffirmationsPage() {
-  const [affirmation, setAffirmation] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
+  // Audio states
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [currentAffirmations, setCurrentAffirmations] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-
-  // NEW: user-written affirmation state
-  const [userAffirmation, setUserAffirmation] = useState('');
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
-
+  const [volume, setVolume] = useState(1);
+  const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  // Check for a supported MIME type
-  const getSupportedMimeType = () => {
-    const types = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/mp4;codecs=opus',
-      'audio/mp4',
-      'audio/ogg;codecs=opus',
-      'audio/ogg',
-      'audio/wav',
-    ];
-    for (const type of types) {
-      if (MediaRecorder.isTypeSupported(type)) {
-        return type;
+  // UI states
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [recordingName, setRecordingName] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [currentAffirmations, setCurrentAffirmations] = useState<string[]>([]);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [showAffirmations, setShowAffirmations] = useState(false);
+  const [isGuideVisible, setIsGuideVisible] = useState(false);
+  const [isCategoryVisible, setIsCategoryVisible] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Global audio context
+  const { globalVolume, setGlobalVolume, playlists, setPlaylists } = useAudio();
+
+  // Add new state for playlist playback
+  const [isPlayingPlaylist, setIsPlayingPlaylist] = useState(false);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(0);
+  const currentPlaylistRef = useRef<number>(0);
+
+  // Add new state for collapsed playlists
+  const [collapsedPlaylists, setCollapsedPlaylists] = useState<Set<string>>(new Set());
+
+  const toggleDarkMode = () => {
+    setIsDarkMode((prev) => {
+      const newValue = !prev;
+      if (newValue) {
+        document.documentElement.classList.add(DARK_MODE_CLASS);
+      } else {
+        document.documentElement.classList.remove(DARK_MODE_CLASS);
       }
-    }
-    return '';
+      return newValue;
+    });
   };
 
-  // Recording functions
   const startRecording = async () => {
     try {
-      const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-      if (permissionResult.state === 'denied') {
-        alert('Please enable microphone access in your browser settings to use this feature.');
-        return;
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100,
-        },
-      });
-      const mimeType = getSupportedMimeType();
-      mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: mimeType || undefined,
-        audioBitsPerSecond: 128000,
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
+
+      mediaRecorder.ondataavailable = (e) => {
+        chunksRef.current.push(e.data);
       };
-      mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, {
-          type: mimeType || 'audio/webm;codecs=opus',
-        });
-        if (audioUrl) {
-          URL.revokeObjectURL(audioUrl);
-        }
-        const url = URL.createObjectURL(audioBlob);
-        setAudioUrl(url);
-      };
-      mediaRecorderRef.current.start(250);
+
+      mediaRecorder.start();
       setIsRecording(true);
-    } catch (err) {
-      console.error('Error accessing microphone:', err);
-      if (err instanceof Error) {
-        if (err.name === 'NotAllowedError') {
-          alert('Microphone access denied. Please allow access in browser settings.');
-        } else if (err.name === 'NotFoundError') {
-          alert('No microphone found. Please connect a microphone and try again.');
-        } else if (err.name === 'NotSupportedError') {
-          alert('Audio recording is not supported in this browser.');
-        } else {
-          alert(`An error occurred: ${err.message}`);
-        }
-      } else {
-        alert('An unknown error occurred while trying to access the microphone.');
-      }
+      setRecordingTime(0);
+      
+      // Start timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
     }
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
       setIsRecording(false);
+      
+      // Clear timer
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
+        // Set default recording name
+        setRecordingName(`Recording ${playlists[0]?.tracks.length + 1 || 1}`);
+      };
     }
   };
 
@@ -136,244 +204,473 @@ export default function AffirmationsPage() {
     }
   };
 
-  const generateAffirmations = () => {
-    const newAffirmations = selectedCategory
-      ? affirmationCategories
-          .find((cat) => cat.id === selectedCategory)
-          ?.affirmations.map((a) => a.text)
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 5) || []
-      : getMatchingAffirmations(affirmation);
-    setCurrentAffirmations(newAffirmations);
-  };
+  const saveToPlaylist = () => {
+    if (audioUrl && recordingName) {
+      fetch(audioUrl)
+        .then(res => res.blob())
+        .then(blob => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64data = reader.result as string;
+            const newTrack = {
+              id: crypto.randomUUID(),
+              name: recordingName,
+              url: base64data
+            };
 
-  const refreshAffirmations = () => {
-    if (affirmation || selectedCategory) {
-      generateAffirmations();
+            // If no playlists exist, create a default one
+            if (playlists.length === 0) {
+              const newPlaylist = {
+                id: crypto.randomUUID(),
+                name: "My Playlist",
+                tracks: [newTrack],
+                isLooping: false,
+                volume: 1
+              };
+              setPlaylists([newPlaylist]);
+            } else {
+              // Add to the first playlist by default
+              const updatedPlaylists = playlists.map((playlist, index) => {
+                if (index === 0) {
+                  return {
+                    ...playlist,
+                    tracks: [...playlist.tracks, newTrack]
+                  };
+                }
+                return playlist;
+              });
+              setPlaylists(updatedPlaylists);
+            }
+            setAudioUrl(null);
+            setRecordingName("");
+          };
+          reader.readAsDataURL(blob);
+        });
     }
   };
 
-  // New: get AI suggestions for user’s custom affirmation
-  const handleGetAISuggestions = async () => {
-    if (!userAffirmation.trim()) return;
-    const suggestions = await getAISuggestions();
-    setAiSuggestions(suggestions);
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    const newAffirmations = getRandomAffirmations(category, 5);
+    setCurrentAffirmations(newAffirmations);
   };
 
-  // Example formula instructions
-  const AFFIRMATION_FORMULA = [
-    "Use present tense (e.g., 'I am', 'I feel', 'I create').",
-    "Keep it positive and short.",
-    "Incorporate emotion or a powerful word (e.g., 'confidently').",
-    "Mention your desired outcome or trait (e.g., 'success', 'health').",
-    "Optional: Add a 'because' statement to highlight your reasoning or motivation."
-  ];
+  useEffect(() => {
+    handleCategoryChange("all");
+  }, []);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const discardRecording = () => {
+    setAudioUrl(null);
+    setRecordingName('');
+  };
+
+  // Add playlist control functions
+  const playPlaylist = (playlistIndex: number) => {
+    setIsPlayingPlaylist(true);
+    currentPlaylistRef.current = playlistIndex;
+    setCurrentTrackIndex(0);
+    
+    // Start playing the first track
+    const playlist = playlists[playlistIndex];
+    if (playlist && playlist.tracks.length > 0) {
+      const audioElement = new Audio(playlist.tracks[0].url);
+      audioElement.volume = globalVolume * playlist.volume;
+      audioElement.play();
+      
+      // Set up the onended event to play next track
+      audioElement.onended = () => {
+        if (currentTrackIndex < playlist.tracks.length - 1) {
+          setCurrentTrackIndex(prev => prev + 1);
+          const nextTrack = playlist.tracks[currentTrackIndex + 1];
+          audioElement.src = nextTrack.url;
+          audioElement.play();
+        } else if (playlist.isLooping) {
+          setCurrentTrackIndex(0);
+          audioElement.src = playlist.tracks[0].url;
+          audioElement.play();
+        } else {
+          setIsPlayingPlaylist(false);
+          setCurrentTrackIndex(0);
+        }
+      };
+    }
+  };
+
+  const stopPlaylist = () => {
+    setIsPlayingPlaylist(false);
+    setCurrentTrackIndex(0);
+  };
+
+  // Add toggle function
+  const togglePlaylistCollapse = (playlistId: string) => {
+    setCollapsedPlaylists(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(playlistId)) {
+        newSet.delete(playlistId);
+      } else {
+        newSet.add(playlistId);
+      }
+      return newSet;
+    });
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-md mx-auto">
-          {/* Header Card */}
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">
-              BrainShift Studio
-            </h1>
-            <p className="text-center text-gray-600">
-              Transform your self-talk into positive affirmations
-            </p>
-          </div>
+    <div className={`min-h-screen ${isDarkMode ? "bg-gray-900 text-white" : "bg-[#f5f5f7]"} p-6`}>
+      <div className="max-w-2xl mx-auto space-y-8">
+        {/* Header - Increased text size and spacing */}
+        <div className="text-center space-y-3 py-4">
+          <h1 className="text-4xl font-semibold tracking-tight text-gray-900 dark:text-white">
+            BrainShift Studio
+          </h1>
+          <p className="text-lg text-gray-600 dark:text-gray-300">
+            Transform your self-talk into positive affirmations
+          </p>
+        </div>
+        
+        {/* Dark Mode Toggle - Increased touch target */}
+        <div className="flex items-center justify-end space-x-3">
+          <span className="text-base">🌞</span>
+          <Switch
+            checked={isDarkMode}
+            onCheckedChange={toggleDarkMode}
+            className="h-7 w-14" // Adjusted size for better proportions
+          />
+          <span className="text-base">🌙</span>
+        </div>
 
-          {/* Input Card */}
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            {/* Category Selection */}
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2">
-                Select a Category
-              </label>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Choose a category..." />
+        {/* Collapsible Self-Hypnosis Guide */}
+        <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
+          <button
+            className="w-full flex justify-between items-center"
+            onClick={() => setIsGuideVisible(!isGuideVisible)}
+          >
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Self-Hypnosis Guide
+            </h2>
+            <span className="text-2xl text-gray-600 dark:text-gray-300">
+              {isGuideVisible ? '−' : '+'}
+            </span>
+          </button>
+
+          {isGuideVisible && (
+            <div className="space-y-2 mt-4">
+              {SELF_HYPNOSIS_GUIDE.map((section) => (
+                <div key={section.title} className="border-b dark:border-gray-700">
+                  <button
+                    className="w-full py-4 flex justify-between items-center text-left"
+                    onClick={() => setExpandedSection(
+                      expandedSection === section.title ? null : section.title
+                    )}
+                  >
+                    <span className="text-base font-medium">{section.title}</span>
+                    <span className="text-xl">
+                      {expandedSection === section.title ? '−' : '+'}
+                    </span>
+                  </button>
+                  {expandedSection === section.title && (
+                    <div className="pb-4">
+                      <ul className="list-disc pl-6 space-y-2">
+                        {section.content.map((item, index) => (
+                          <li key={index} className="text-sm text-gray-600 dark:text-gray-300">
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Collapsible Category Selection */}
+        <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
+          <button
+            className="w-full flex justify-between items-center"
+            onClick={() => setIsCategoryVisible(!isCategoryVisible)}
+          >
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Choose Category
+            </h2>
+            <span className="text-2xl text-gray-600 dark:text-gray-300">
+              {isCategoryVisible ? '−' : '+'}
+            </span>
+          </button>
+
+          {isCategoryVisible && (
+            <div className="mt-4 space-y-4">
+              <Select 
+                value={selectedCategory} 
+                onValueChange={(category) => {
+                  setSelectedCategory(category);
+                  handleCategoryChange(category);
+                  setShowAffirmations(true);
+                }}
+              >
+                <SelectTrigger className="h-12 text-base">
+                  <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="all" className="h-12 text-base">All Categories</SelectItem>
                   {affirmationCategories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
+                    <SelectItem 
+                      key={category.id} 
+                      value={category.id}
+                      className="h-12 text-base"
+                    >
                       {category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Only show affirmations if showAffirmations is true */}
+              {showAffirmations && (
+                <div className="space-y-3">
+                  {currentAffirmations.map((affirmation, index) => (
+                    <div 
+                      key={index}
+                      className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-base leading-relaxed"
+                    >
+                      {affirmation}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+          )}
+        </div>
 
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              What negative self-talk would you like to transform?
-            </label>
-            <textarea
-              value={affirmation}
-              onChange={(e) => setAffirmation(e.target.value)}
-              className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-32"
-              placeholder="Enter your thoughts here..."
-              spellCheck={true} // Enable basic browser-based spell checking
-            />
-
-            <div className="space-y-4 mt-4">
-              <button
-                onClick={generateAffirmations}
-                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-200"
-              >
-                Generate Affirmations
-              </button>
-
-              <button
+        {/* Recording Section - Enhanced visual hierarchy */}
+        <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+            Record Your Affirmation
+          </h2>
+          <div className="space-y-6">
+            <div className="flex justify-center">
+              <Button 
                 onClick={toggleRecording}
-                className={`w-full font-bold py-3 px-4 rounded-lg transition-colors duration-200 ${
-                  isRecording
-                    ? 'bg-red-500 hover:bg-red-600 text-white'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                }`}
+                variant={isRecording ? "destructive" : "default"}
+                className="h-12 px-8 text-base" // Increased touch target
               >
-                {isRecording ? '⏹️ Stop Recording' : '🎤 Start Recording'}
-              </button>
+                {isRecording ? "Stop Recording" : "Start Recording"}
+              </Button>
             </div>
 
             {isRecording && (
-              <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-100">
-                <p className="text-red-600 text-sm text-center animate-pulse">
-                  Recording in progress...
-                </p>
+              <div className="space-y-4">
+                <div className="text-center space-y-2">
+                  <div className="text-red-500 text-xl font-medium animate-pulse">
+                    Recording
+                  </div>
+                  <div className="text-lg font-mono">
+                    {formatTime(recordingTime)}
+                  </div>
+                </div>
+                <LiveWaveform isRecording={isRecording} />
               </div>
             )}
 
-            {audioUrl && !isRecording && (
-              <div className="mt-4">
-                <h3 className="text-sm font-bold mb-2">Recording Preview:</h3>
+            {audioUrl && (
+              <div className="space-y-6">
                 <AudioWaveform
                   audioUrl={audioUrl}
-                  onTrimComplete={(trimmedUrl) => {
-                    // Update the audio URL to the trimmed version
-                    if (audioUrl) {
-                      URL.revokeObjectURL(audioUrl); // Clean up old URL
-                    }
-                    setAudioUrl(trimmedUrl);
-                  }}
+                  onTrimComplete={(trimmedUrl) => setAudioUrl(trimmedUrl)}
+                  volume={volume}
                 />
-                <audio controls className="w-full mt-2">
-                  <source src={audioUrl} type="audio/webm;codecs=opus" />
-                  Your browser does not support the audio element.
-                </audio>
+                <div className="flex items-center space-x-4">
+                  <input
+                    type="text"
+                    value={recordingName}
+                    onChange={(e) => setRecordingName(e.target.value)}
+                    placeholder="Enter recording name"
+                    className="flex-1 h-12 px-4 text-base border rounded-xl dark:bg-gray-700"
+                  />
+                  <Button 
+                    onClick={saveToPlaylist}
+                    className="h-12 px-6 text-base"
+                  >
+                    Save to Playlist
+                  </Button>
+                  <Button 
+                    onClick={discardRecording}
+                    variant="destructive"
+                    className="h-12 px-6 text-base"
+                  >
+                    Discard
+                  </Button>
+                </div>
+                
+                {/* Volume Control - Improved visual feedback */}
+                <div className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                  <span className="text-base">Volume:</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="flex-1 h-2 accent-blue-600"
+                  />
+                </div>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Affirmations Preview Card */}
-          {currentAffirmations.length > 0 && (
-            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold text-gray-800">
-                  Your Positive Affirmations:
-                </h2>
-                <button
-                  onClick={refreshAffirmations}
-                  className="text-blue-500 hover:text-blue-600"
+        {/* Enhanced Playlist Section with Full Controls */}
+        <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Your Playlists
+            </h2>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm">Global Volume:</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={globalVolume}
+                onChange={(e) => setGlobalVolume(parseFloat(e.target.value))}
+                className="w-24"
+              />
+              <Button 
+                onClick={() => {
+                  const newPlaylist = {
+                    id: crypto.randomUUID(),
+                    name: `Playlist ${playlists.length + 1}`,
+                    tracks: [],
+                    isLooping: false,
+                    volume: 1
+                  };
+                  setPlaylists([...playlists, newPlaylist]);
+                }}
+                className="h-10 px-4"
+              >
+                New Playlist
+              </Button>
+            </div>
+          </div>
+
+          {playlists.length === 0 ? (
+            <p className="text-base text-gray-600 dark:text-gray-400">
+              No playlists created yet
+            </p>
+          ) : (
+            <div className="space-y-6">
+              {playlists.map((playlist, index) => (
+                <div 
+                  key={playlist.id}
+                  className="border dark:border-gray-700 rounded-xl p-4"
                 >
-                  🔄 Refresh
-                </button>
-              </div>
-              <div className="space-y-4">
-                {currentAffirmations.map((aff, index) => (
-                  <div key={index} className="p-4 bg-blue-50 rounded-lg">
-                    <p className="text-gray-700">{aff}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <button
+                        onClick={() => togglePlaylistCollapse(playlist.id)}
+                        className="text-xl"
+                      >
+                        {collapsedPlaylists.has(playlist.id) ? '▶' : '▼'}
+                      </button>
+                      <h3 className="text-lg font-medium">{playlist.name}</h3>
+                      <span className="text-sm text-gray-500">
+                        ({playlist.tracks.length} tracks)
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        size="sm"
+                        onClick={() => isPlayingPlaylist ? stopPlaylist() : playPlaylist(index)}
+                        variant="outline"
+                        className="h-8 px-3"
+                      >
+                        {isPlayingPlaylist && currentPlaylistRef.current === index ? '⏹️' : '▶️'}
+                      </Button>
+                      <button
+                        onClick={() => {
+                          setPlaylists(playlists.map(p => 
+                            p.id === playlist.id ? { ...p, isLooping: !p.isLooping } : p
+                          ));
+                        }}
+                        className={`p-1.5 rounded-lg ${
+                          playlist.isLooping ? 'bg-blue-500 text-white' : 'bg-gray-200'
+                        }`}
+                      >
+                        🔁
+                      </button>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={playlist.volume}
+                        onChange={(e) => {
+                          setPlaylists(playlists.map(p => 
+                            p.id === playlist.id ? { ...p, volume: parseFloat(e.target.value) } : p
+                          ));
+                        }}
+                        className="w-20 h-2"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          setPlaylists(playlists.filter(p => p.id !== playlist.id));
+                        }}
+                        className="h-8 w-8 p-0"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                ))}
-              </div>
+
+                  {!collapsedPlaylists.has(playlist.id) && (
+                    <div className="mt-3 space-y-1">
+                      {playlist.tracks.map((track) => (
+                        <div
+                          key={track.id}
+                          className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                        >
+                          <span className="flex-none w-24 truncate text-sm">{track.name}</span>
+                          <div className="flex-1 min-w-0">
+                            <AudioWaveform
+                              audioUrl={track.url}
+                              volume={globalVolume * playlist.volume}
+                              isCompact={true}
+                              showControls={true}
+                            />
+                          </div>
+                          <Button 
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              setPlaylists(playlists.map(p => 
+                                p.id === playlist.id ? {
+                                  ...p,
+                                  tracks: p.tracks.filter(t => t.id !== track.id)
+                                } : p
+                              ));
+                            }}
+                            className="h-8 w-8 p-0 flex-none"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
-
-          {/* 3. Let user write their own affirmations + AI suggestions */}
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4 text-gray-800">
-              Create Your Own Affirmation
-            </h2>
-            <p className="text-sm text-gray-500 mb-2">
-              Use the following guidelines to craft a powerful affirmation:
-            </p>
-            <ul className="list-disc list-inside mb-4 text-sm text-gray-600">
-              {AFFIRMATION_FORMULA.map((tip, idx) => (
-                <li key={idx}>{tip}</li>
-              ))}
-            </ul>
-            <textarea
-              className="w-full border px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 mb-2"
-              placeholder="Write your personal affirmation here..."
-              value={userAffirmation}
-              onChange={(e) => setUserAffirmation(e.target.value)}
-              spellCheck={true}
-            />
-
-            <div className="flex space-x-2">
-              <button
-                onClick={handleGetAISuggestions}
-                className="bg-blue-500 text-white font-bold py-2 px-4 rounded hover:bg-blue-600"
-              >
-                Get AI Suggestions
-              </button>
-              <button
-                onClick={() => {
-                  // If you want to do something with userAffirmation
-                  alert(`Affirmation Saved!\n\n${userAffirmation}`);
-                }}
-                className="bg-green-500 text-white font-bold py-2 px-4 rounded hover:bg-green-600"
-              >
-                Save Affirmation
-              </button>
-            </div>
-
-            {/* Show AI suggestions if any */}
-            {aiSuggestions.length > 0 && (
-              <div className="mt-4">
-                <h3 className="text-md font-semibold mb-2 text-gray-800">
-                  AI Suggestions:
-                </h3>
-                <ul className="space-y-2">
-                  {aiSuggestions.map((suggestion, idx) => (
-                    <li key={idx} className="bg-blue-50 p-2 rounded text-gray-700 text-sm">
-                      {suggestion}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          {/* 5. Voice Generator (lowest priority) — placeholder */}
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Voice Generator (Demo)</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              This feature would clone your voice from a sample and generate
-              an affirmation audio. (Placeholder only)
-            </p>
-            <button
-              onClick={() => {
-                if (!audioUrl) {
-                  alert('Record some audio first!');
-                  return;
-                }
-                // Example usage
-                fetch(audioUrl)
-                  .then((res) => res.blob())
-                  .then(() => generateVoiceFromSample()) // <-- removed unused "blob"
-                  .then((generatedBlob) => {
-                    const genUrl = URL.createObjectURL(generatedBlob);
-                    const audio = new Audio(genUrl);
-                    audio.play();
-                    alert('Playing your AI-generated voice sample...');
-                  });
-              }}
-              className="bg-purple-500 text-white font-bold py-2 px-4 rounded hover:bg-purple-600"
-            >
-              Generate Voice from Sample
-            </button>
-          </div>
         </div>
       </div>
     </div>
