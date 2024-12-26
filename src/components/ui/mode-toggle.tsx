@@ -23,18 +23,24 @@ export function ModeToggle({ isDark, onToggle }: ModeToggleProps) {
       className={`
         relative inline-flex h-8 w-14 items-center rounded-full
         transition-colors duration-300 ease-in-out focus:outline-none
-        ${isDark ? 'bg-blue-600' : 'bg-gray-200'}
+        ${isDark 
+          ? 'bg-gray-700 hover:bg-gray-600' 
+          : 'bg-blue-100 hover:bg-blue-200'
+        }
       `}
     >
       <div
         className={`
           absolute flex h-6 w-6 items-center justify-center rounded-full
-          bg-white shadow-lg transition-transform duration-300 ease-in-out
-          ${isDark ? 'translate-x-7' : 'translate-x-1'}
+          shadow-lg transition-transform duration-300 ease-in-out
+          ${isDark 
+            ? 'translate-x-7 bg-gray-900' 
+            : 'translate-x-1 bg-white'
+          }
         `}
       >
         {isDark ? (
-          <Moon className="h-4 w-4 text-blue-600" />
+          <Moon className="h-4 w-4 text-white" />
         ) : (
           <Sun className="h-4 w-4 text-yellow-500" />
         )}

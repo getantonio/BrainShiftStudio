@@ -127,9 +127,7 @@ export default function AffirmationsPage() {
   const [recordingName, setRecordingName] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [currentAffirmations, setCurrentAffirmations] = useState<string[]>([]);
-  const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [showAffirmations, setShowAffirmations] = useState(false);
-  const [isGuideVisible, setIsGuideVisible] = useState(false);
   const [isCategoryVisible, setIsCategoryVisible] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -153,6 +151,10 @@ export default function AffirmationsPage() {
 
   // Add state for workshop visibility
   const [showWorkshop, setShowWorkshop] = useState(false);
+
+  // Add state for guide visibility
+  const [isGuideVisible, setIsGuideVisible] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   // Add useEffect to set default playlist
   useEffect(() => {
@@ -353,439 +355,441 @@ export default function AffirmationsPage() {
   };
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? "bg-gray-900 text-white" : "bg-[#f5f5f7]"} p-6`}>
-      <div className="max-w-2xl mx-auto space-y-8">
-        {/* Header - Increased text size and spacing */}
-        <div className="text-center space-y-3 py-4">
-          <h1 className="text-4xl font-semibold tracking-tight text-gray-900 dark:text-white">
-            BrainShift Studio
-          </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-300">
-            Transform your self-talk into positive affirmations
-          </p>
-        </div>
-        
-        {/* Dark Mode Toggle - Increased touch target */}
-        <div className="flex items-center justify-end">
+    <div className="min-h-screen p-8 bg-gray-100 dark:bg-gray-900 space-y-6">
+      {/* Header */}
+      <div className="text-center relative py-4">
+        {/* Position the toggle in the top-right of the header */}
+        <div className="absolute right-0 top-0">
           <ModeToggle 
             isDark={isDarkMode} 
             onToggle={toggleDarkMode} 
           />
         </div>
+        
+        <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+          Affirmations Studio
+        </h1>
+        <p className="text-xl text-gray-600 dark:text-gray-300">
+          Transform your self-talk into positive affirmations
+        </p>
+      </div>
 
-        {/* Collapsible Self-Hypnosis Guide */}
-        <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
-          <button
-            className="w-full flex justify-between items-center"
-            onClick={() => setIsGuideVisible(!isGuideVisible)}
-          >
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Self-Hypnosis Guide
-            </h2>
-            <span className="text-2xl text-gray-600 dark:text-gray-300">
-              {isGuideVisible ? '−' : '+'}
-            </span>
-          </button>
+      {/* Self-Hypnosis Guide */}
+      <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
+        <button
+          className="w-full flex justify-between items-center"
+          onClick={() => setIsGuideVisible(!isGuideVisible)}
+        >
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Self-Hypnosis Guide
+          </h2>
+          <span className="text-2xl text-gray-600 dark:text-gray-300">
+            {isGuideVisible ? '−' : '+'}
+          </span>
+        </button>
 
-          {isGuideVisible && (
-            <div className="space-y-2 mt-4">
-              {SELF_HYPNOSIS_GUIDE.map((section) => (
-                <div key={section.title} className="border-b dark:border-gray-700">
-                  <button
-                    className="w-full py-4 flex justify-between items-center text-left"
-                    onClick={() => setExpandedSection(
-                      expandedSection === section.title ? null : section.title
-                    )}
-                  >
-                    <span className="text-base font-medium">{section.title}</span>
-                    <span className="text-xl">
-                      {expandedSection === section.title ? '−' : '+'}
-                    </span>
-                  </button>
-                  {expandedSection === section.title && (
-                    <div className="pb-4">
-                      <ul className="list-disc pl-6 space-y-2">
-                        {section.content.map((item, index) => (
-                          <li key={index} className="text-sm text-gray-600 dark:text-gray-300">
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+        {isGuideVisible && (
+          <div className="mt-4 space-y-4">
+            {SELF_HYPNOSIS_GUIDE.map((section) => (
+              <div key={section.title} className="border-b dark:border-gray-700">
+                <button
+                  className="w-full py-2 flex justify-between items-center text-left"
+                  onClick={() => setExpandedSection(
+                    expandedSection === section.title ? null : section.title
                   )}
-                </div>
-              ))}
-            </div>
-          )}
+                >
+                  <span className="text-base font-medium">{section.title}</span>
+                  <ChevronDown 
+                    className={`w-6 h-6 transition-transform ${
+                      expandedSection === section.title ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                {expandedSection === section.title && (
+                  <div className="pb-2">
+                    <ul className="list-disc pl-6 space-y-1">
+                      {section.content.map((item, index) => (
+                        <li key={index} className="text-sm text-gray-600 dark:text-gray-300">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Collapsible Category Selection */}
+      <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Affirmations
+          </h2>
+          <Button
+            variant="outline"
+            onClick={() => setShowWorkshop(!showWorkshop)}
+          >
+            {showWorkshop ? 'View Categories' : 'Create Your Own'}
+          </Button>
         </div>
 
-        {/* Collapsible Category Selection */}
-        <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Affirmations
-            </h2>
-            <Button
-              variant="outline"
-              onClick={() => setShowWorkshop(!showWorkshop)}
+        {showWorkshop ? (
+          <div className="space-y-6">
+            <AffirmationWorkshop />
+          </div>
+        ) : (
+          <>
+            <button
+              className="w-full flex justify-between items-center"
+              onClick={() => setIsCategoryVisible(!isCategoryVisible)}
             >
-              {showWorkshop ? 'View Categories' : 'Create Your Own'}
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                Choose Category
+              </h3>
+              <span className="text-2xl text-gray-600 dark:text-gray-300">
+                {isCategoryVisible ? '−' : '+'}
+              </span>
+            </button>
+
+            {isCategoryVisible && (
+              <div className="mt-4 space-y-4">
+                <Select 
+                  value={selectedCategory} 
+                  onValueChange={(category) => {
+                    setSelectedCategory(category);
+                    handleCategoryChange(category);
+                    setShowAffirmations(true);
+                  }}
+                >
+                  <SelectTrigger className="h-12 text-base">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="h-12 text-base">
+                      All Categories
+                    </SelectItem>
+                    {affirmationCategories.map((category) => (
+                      <SelectItem 
+                        key={category.id}
+                        value={category.id}
+                        className="h-12 text-base"
+                      >
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {showAffirmations && (
+                  <div className="space-y-3">
+                    {currentAffirmations.map((affirmation, index) => (
+                      <div
+                        key={index}
+                        className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-base leading-relaxed"
+                      >
+                        {affirmation}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Recording Section - Enhanced visual hierarchy */}
+      <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+          Record Your Affirmation
+        </h2>
+        <div className="space-y-6">
+          <div className="flex justify-center">
+            <Button 
+              onClick={toggleRecording}
+              variant={isRecording ? "destructive" : "default"}
+              className="h-12 px-8 text-base" // Increased touch target
+            >
+              {isRecording ? "Stop Recording" : "Start Recording"}
             </Button>
           </div>
 
-          {showWorkshop ? (
-            <AffirmationWorkshop />
-          ) : (
-            <>
-              <button
-                className="w-full flex justify-between items-center"
-                onClick={() => setIsCategoryVisible(!isCategoryVisible)}
-              >
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                  Choose Category
-                </h3>
-                <span className="text-2xl text-gray-600 dark:text-gray-300">
-                  {isCategoryVisible ? '−' : '+'}
-                </span>
-              </button>
-
-              {isCategoryVisible && (
-                <div className="mt-4 space-y-4">
-                  <Select 
-                    value={selectedCategory} 
-                    onValueChange={(category) => {
-                      setSelectedCategory(category);
-                      handleCategoryChange(category);
-                      setShowAffirmations(true);
-                    }}
-                  >
-                    <SelectTrigger className="h-12 text-base">
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all" className="h-12 text-base">
-                        All Categories
-                      </SelectItem>
-                      {affirmationCategories.map((category) => (
-                        <SelectItem 
-                          key={category.id}
-                          value={category.id}
-                          className="h-12 text-base"
-                        >
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {showAffirmations && (
-                    <div className="space-y-3">
-                      {currentAffirmations.map((affirmation, index) => (
-                        <div
-                          key={index}
-                          className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-base leading-relaxed"
-                        >
-                          {affirmation}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+          {isRecording && (
+            <div className="space-y-4">
+              <div className="text-center space-y-2">
+                <div className="text-red-500 text-xl font-medium animate-pulse">
+                  Recording
                 </div>
-              )}
-            </>
+                <div className="text-lg font-mono">
+                  {formatTime(recordingTime)}
+                </div>
+              </div>
+              <LiveWaveform isRecording={isRecording} />
+            </div>
+          )}
+
+          {audioUrl && (
+            <div className="space-y-6">
+              <AudioWaveform
+                audioUrl={audioUrl}
+                onTrimComplete={(trimmedUrl) => setAudioUrl(trimmedUrl)}
+                volume={volume}
+              />
+              <div className="flex items-center space-x-4">
+                <input
+                  type="text"
+                  value={recordingName}
+                  onChange={(e) => setRecordingName(e.target.value)}
+                  placeholder="Enter recording name"
+                  className="flex-1 h-12 px-4 text-base border rounded-xl dark:bg-gray-700"
+                />
+                <Select
+                  value={selectedPlaylistId}
+                  onValueChange={setSelectedPlaylistId}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Select playlist" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {playlists.map(playlist => (
+                      <SelectItem key={playlist.id} value={playlist.id}>
+                        {playlist.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button 
+                  onClick={saveToPlaylist}
+                  disabled={!selectedPlaylistId}
+                  className="h-12 px-6 text-base"
+                >
+                  Save to Playlist
+                </Button>
+                <Button 
+                  onClick={discardRecording}
+                  variant="destructive"
+                  className="h-12 px-6 text-base"
+                >
+                  Discard
+                </Button>
+              </div>
+              
+              {/* Volume Control - Improved visual feedback */}
+              <div className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                <span className="text-base">Volume:</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={volume}
+                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  className="flex-1 h-2 accent-blue-600"
+                />
+              </div>
+            </div>
           )}
         </div>
+      </div>
 
-        {/* Recording Section - Enhanced visual hierarchy */}
-        <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-            Record Your Affirmation
+      {/* Enhanced Playlist Section with Full Controls */}
+      <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Your Playlists
           </h2>
-          <div className="space-y-6">
-            <div className="flex justify-center">
-              <Button 
-                onClick={toggleRecording}
-                variant={isRecording ? "destructive" : "default"}
-                className="h-12 px-8 text-base" // Increased touch target
-              >
-                {isRecording ? "Stop Recording" : "Start Recording"}
-              </Button>
-            </div>
-
-            {isRecording && (
-              <div className="space-y-4">
-                <div className="text-center space-y-2">
-                  <div className="text-red-500 text-xl font-medium animate-pulse">
-                    Recording
-                  </div>
-                  <div className="text-lg font-mono">
-                    {formatTime(recordingTime)}
-                  </div>
-                </div>
-                <LiveWaveform isRecording={isRecording} />
-              </div>
-            )}
-
-            {audioUrl && (
-              <div className="space-y-6">
-                <AudioWaveform
-                  audioUrl={audioUrl}
-                  onTrimComplete={(trimmedUrl) => setAudioUrl(trimmedUrl)}
-                  volume={volume}
-                />
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="text"
-                    value={recordingName}
-                    onChange={(e) => setRecordingName(e.target.value)}
-                    placeholder="Enter recording name"
-                    className="flex-1 h-12 px-4 text-base border rounded-xl dark:bg-gray-700"
-                  />
-                  <Select
-                    value={selectedPlaylistId}
-                    onValueChange={setSelectedPlaylistId}
-                  >
-                    <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="Select playlist" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {playlists.map(playlist => (
-                        <SelectItem key={playlist.id} value={playlist.id}>
-                          {playlist.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button 
-                    onClick={saveToPlaylist}
-                    disabled={!selectedPlaylistId}
-                    className="h-12 px-6 text-base"
-                  >
-                    Save to Playlist
-                  </Button>
-                  <Button 
-                    onClick={discardRecording}
-                    variant="destructive"
-                    className="h-12 px-6 text-base"
-                  >
-                    Discard
-                  </Button>
-                </div>
-                
-                {/* Volume Control - Improved visual feedback */}
-                <div className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                  <span className="text-base">Volume:</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={volume}
-                    onChange={(e) => setVolume(parseFloat(e.target.value))}
-                    className="flex-1 h-2 accent-blue-600"
-                  />
-                </div>
-              </div>
-            )}
+          <div className="flex items-center space-x-4">
+            <span className="text-sm">Global Volume:</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={globalVolume}
+              onChange={(e) => setGlobalVolume(parseFloat(e.target.value))}
+              className="w-24"
+            />
+            <Button 
+              onClick={() => {
+                const newPlaylist = {
+                  id: crypto.randomUUID(),
+                  name: `Playlist ${playlists.length + 1}`,
+                  tracks: [],
+                  isLooping: false,
+                  volume: 1
+                };
+                setPlaylists([...playlists, newPlaylist]);
+              }}
+              className="h-10 px-4"
+            >
+              New Playlist
+            </Button>
           </div>
         </div>
 
-        {/* Enhanced Playlist Section with Full Controls */}
-        <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Your Playlists
-            </h2>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm">Global Volume:</span>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={globalVolume}
-                onChange={(e) => setGlobalVolume(parseFloat(e.target.value))}
-                className="w-24"
-              />
-              <Button 
-                onClick={() => {
-                  const newPlaylist = {
-                    id: crypto.randomUUID(),
-                    name: `Playlist ${playlists.length + 1}`,
-                    tracks: [],
-                    isLooping: false,
-                    volume: 1
-                  };
-                  setPlaylists([...playlists, newPlaylist]);
-                }}
-                className="h-10 px-4"
+        {playlists.length === 0 ? (
+          <p className="text-base text-gray-600 dark:text-gray-400">
+            No playlists created yet
+          </p>
+        ) : (
+          <div className="space-y-6">
+            {playlists.map((playlist, index) => (
+              <div 
+                key={playlist.id}
+                className="border dark:border-gray-700 rounded-xl p-4"
               >
-                New Playlist
-              </Button>
-            </div>
-          </div>
-
-          {playlists.length === 0 ? (
-            <p className="text-base text-gray-600 dark:text-gray-400">
-              No playlists created yet
-            </p>
-          ) : (
-            <div className="space-y-6">
-              {playlists.map((playlist, index) => (
-                <div 
-                  key={playlist.id}
-                  className="border dark:border-gray-700 rounded-xl p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <button
-                        onClick={() => togglePlaylistCollapse(playlist.id)}
-                        className="text-xl hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full p-1"
-                      >
-                        {collapsedPlaylists.has(playlist.id) ? (
-                          <ChevronRight className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </button>
-                      <h3 className="text-lg font-medium">{playlist.name}</h3>
-                      <span className="text-sm text-gray-500">
-                        ({playlist.tracks.length} tracks)
-                      </span>
-                    </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => togglePlaylistCollapse(playlist.id)}
+                      className="text-xl hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full p-1"
+                    >
+                      {collapsedPlaylists.has(playlist.id) ? (
+                        <ChevronRight className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </button>
+                    <h3 className="text-lg font-medium">{playlist.name}</h3>
+                    <span className="text-sm text-gray-500">
+                      ({playlist.tracks.length} tracks)
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      size="sm"
+                      onClick={() => isPlayingPlaylist ? stopPlaylist() : playPlaylist(index)}
+                      variant="outline"
+                      className="h-8 px-3"
+                    >
+                      {isPlayingPlaylist && currentPlaylistRef.current === index ? '⏹️' : '▶️'}
+                    </Button>
+                    <button
+                      onClick={() => {
+                        setPlaylists(playlists.map(p => 
+                          p.id === playlist.id ? { ...p, isLooping: !p.isLooping } : p
+                        ));
+                      }}
+                      className={`p-1.5 rounded-lg ${
+                        playlist.isLooping ? 'bg-blue-500 text-white' : 'bg-gray-200'
+                      }`}
+                    >
+                      🔁
+                    </button>
                     <div className="flex items-center space-x-2">
-                      <Button
-                        size="sm"
-                        onClick={() => isPlayingPlaylist ? stopPlaylist() : playPlaylist(index)}
-                        variant="outline"
-                        className="h-8 px-3"
-                      >
-                        {isPlayingPlaylist && currentPlaylistRef.current === index ? '⏹️' : '▶️'}
-                      </Button>
-                      <button
-                        onClick={() => {
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={playlist.volume}
+                        onChange={(e) => {
+                          const newVolume = parseFloat(e.target.value);
                           setPlaylists(playlists.map(p => 
-                            p.id === playlist.id ? { ...p, isLooping: !p.isLooping } : p
+                            p.id === playlist.id ? { ...p, volume: newVolume } : p
                           ));
                         }}
-                        className={`p-1.5 rounded-lg ${
-                          playlist.isLooping ? 'bg-blue-500 text-white' : 'bg-gray-200'
-                        }`}
+                        className="w-24 h-2 accent-blue-500 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                        style={{
+                          background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${playlist.volume * 100}%, #e5e7eb ${playlist.volume * 100}%, #e5e7eb 100%)`
+                        }}
+                      />
+                      <span className="w-24 text-xs font-mono">
+                        {formatVolume(playlist.volume)}
+                      </span>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setPlaylists(playlists.filter(p => p.id !== playlist.id));
+                      }}
+                      className="h-8 w-8 p-0"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {!collapsedPlaylists.has(playlist.id) && (
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add('bg-blue-100', 'dark:bg-blue-900');
+                    }}
+                    onDragLeave={(e) => {
+                      e.currentTarget.classList.remove('bg-blue-100', 'dark:bg-blue-900');
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove('bg-blue-100', 'dark:bg-blue-900');
+                      if (draggedTrack && draggedTrack.playlistId !== playlist.id) {
+                        const sourcePlaylist = playlists.find(p => p.id === draggedTrack.playlistId);
+                        const track = sourcePlaylist?.tracks.find(t => t.id === draggedTrack.id);
+                        if (track) {
+                          setPlaylists(playlists.map(p => {
+                            if (p.id === draggedTrack.playlistId) {
+                              return {
+                                ...p,
+                                tracks: p.tracks.filter(t => t.id !== draggedTrack.id)
+                              };
+                            }
+                            if (p.id === playlist.id) {
+                              return {
+                                ...p,
+                                tracks: [...p.tracks, track]
+                              };
+                            }
+                            return p;
+                          }));
+                        }
+                      }
+                    }}
+                    className="mt-3 space-y-1 transition-colors"
+                  >
+                    {playlist.tracks.map((track) => (
+                      <div
+                        key={track.id}
+                        draggable
+                        onDragStart={() => setDraggedTrack({ id: track.id, playlistId: playlist.id })}
+                        onDragEnd={() => setDraggedTrack(null)}
+                        className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-move"
                       >
-                        🔁
-                      </button>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={playlist.volume}
-                          onChange={(e) => {
-                            const newVolume = parseFloat(e.target.value);
+                        <span className="flex-none w-24 truncate text-sm">{track.name}</span>
+                        <div className="flex-1 min-w-0">
+                          <AudioWaveform
+                            audioUrl={track.url}
+                            volume={globalVolume * playlist.volume}
+                            isCompact={true}
+                            showControls={true}
+                          />
+                        </div>
+                        <Button 
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
                             setPlaylists(playlists.map(p => 
-                              p.id === playlist.id ? { ...p, volume: newVolume } : p
+                              p.id === playlist.id ? {
+                                ...p,
+                                tracks: p.tracks.filter(t => t.id !== track.id)
+                              } : p
                             ));
                           }}
-                          className="w-24 h-2 accent-blue-500 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                          style={{
-                            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${playlist.volume * 100}%, #e5e7eb ${playlist.volume * 100}%, #e5e7eb 100%)`
-                          }}
-                        />
-                        <span className="w-24 text-xs font-mono">
-                          {formatVolume(playlist.volume)}
-                        </span>
-                      </div>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => {
-                          setPlaylists(playlists.filter(p => p.id !== playlist.id));
-                        }}
-                        className="h-8 w-8 p-0"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {!collapsedPlaylists.has(playlist.id) && (
-                    <div
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.currentTarget.classList.add('bg-blue-100', 'dark:bg-blue-900');
-                      }}
-                      onDragLeave={(e) => {
-                        e.currentTarget.classList.remove('bg-blue-100', 'dark:bg-blue-900');
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        e.currentTarget.classList.remove('bg-blue-100', 'dark:bg-blue-900');
-                        if (draggedTrack && draggedTrack.playlistId !== playlist.id) {
-                          const sourcePlaylist = playlists.find(p => p.id === draggedTrack.playlistId);
-                          const track = sourcePlaylist?.tracks.find(t => t.id === draggedTrack.id);
-                          if (track) {
-                            setPlaylists(playlists.map(p => {
-                              if (p.id === draggedTrack.playlistId) {
-                                return {
-                                  ...p,
-                                  tracks: p.tracks.filter(t => t.id !== draggedTrack.id)
-                                };
-                              }
-                              if (p.id === playlist.id) {
-                                return {
-                                  ...p,
-                                  tracks: [...p.tracks, track]
-                                };
-                              }
-                              return p;
-                            }));
-                          }
-                        }
-                      }}
-                      className="mt-3 space-y-1 transition-colors"
-                    >
-                      {playlist.tracks.map((track) => (
-                        <div
-                          key={track.id}
-                          draggable
-                          onDragStart={() => setDraggedTrack({ id: track.id, playlistId: playlist.id })}
-                          onDragEnd={() => setDraggedTrack(null)}
-                          className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-move"
+                          className="h-8 w-8 p-0 flex-none"
                         >
-                          <span className="flex-none w-24 truncate text-sm">{track.name}</span>
-                          <div className="flex-1 min-w-0">
-                            <AudioWaveform
-                              audioUrl={track.url}
-                              volume={globalVolume * playlist.volume}
-                              isCompact={true}
-                              showControls={true}
-                            />
-                          </div>
-                          <Button 
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => {
-                              setPlaylists(playlists.map(p => 
-                                p.id === playlist.id ? {
-                                  ...p,
-                                  tracks: p.tracks.filter(t => t.id !== track.id)
-                                } : p
-                              ));
-                            }}
-                            className="h-8 w-8 p-0 flex-none"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                          <TrashIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "./ui/button";
-import { CheckCircle, AlertCircle, Lightbulb } from "lucide-react";
+import { CheckCircle, AlertCircle, Lightbulb, ChevronDown, ChevronRight } from "lucide-react";
 
 interface Suggestion {
   original: string;
@@ -62,6 +62,7 @@ export function AffirmationWorkshop() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [guidelineChecks, setGuidelineChecks] = useState<boolean[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showGuidelines, setShowGuidelines] = useState(false);
 
   useEffect(() => {
     analyzeAffirmation(affirmation);
@@ -104,6 +105,47 @@ export function AffirmationWorkshop() {
         </p>
       </div>
 
+      <button
+        onClick={() => setShowGuidelines(!showGuidelines)}
+        className="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-xl"
+      >
+        <span className="font-medium">Affirmation Guidelines</span>
+        {showGuidelines ? (
+          <ChevronDown className="h-4 w-4" />
+        ) : (
+          <ChevronRight className="h-4 w-4" />
+        )}
+      </button>
+
+      {showGuidelines && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {AFFIRMATION_GUIDELINES.map((guide, index) => (
+              <div
+                key={index}
+                className={`p-4 rounded-lg border ${
+                  guidelineChecks[index] 
+                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
+                    : 'border-gray-200 dark:border-gray-700'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  {guidelineChecks[index] ? (
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-gray-400" />
+                  )}
+                  <span className="font-medium">{guide.check}</span>
+                </div>
+                <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  Examples: {guide.examples.join(", ")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         <div className="relative">
           <textarea
@@ -137,34 +179,6 @@ export function AffirmationWorkshop() {
             ))}
           </div>
         )}
-
-        <div className="space-y-2">
-          <h3 className="font-medium">Guidelines:</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {AFFIRMATION_GUIDELINES.map((guide, index) => (
-              <div
-                key={index}
-                className={`p-4 rounded-lg border ${
-                  guidelineChecks[index] 
-                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
-                    : 'border-gray-200 dark:border-gray-700'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  {guidelineChecks[index] ? (
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <AlertCircle className="h-5 w-5 text-gray-400" />
-                  )}
-                  <span className="font-medium">{guide.check}</span>
-                </div>
-                <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                  Examples: {guide.examples.join(", ")}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {suggestions.length > 0 && (
           <div className="space-y-2">
