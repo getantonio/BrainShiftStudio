@@ -151,6 +151,16 @@ export default function AffirmationsPage() {
   // Add drag state
   const [draggedTrack, setDraggedTrack] = useState<{id: string, playlistId: string} | null>(null);
 
+  // Add state for workshop visibility
+  const [showWorkshop, setShowWorkshop] = useState(false);
+
+  // Add useEffect to set default playlist
+  useEffect(() => {
+    if (playlists.length > 0 && !selectedPlaylistId) {
+      setSelectedPlaylistId(playlists[0].id);
+    }
+  }, [playlists, selectedPlaylistId]);
+
   const toggleDarkMode = () => {
     setIsDarkMode((prev) => {
       const newValue = !prev;
@@ -356,13 +366,11 @@ export default function AffirmationsPage() {
         </div>
         
         {/* Dark Mode Toggle - Increased touch target */}
-        <div className="flex items-center justify-end space-x-3">
-          <span className="text-base">🌞</span>
+        <div className="flex items-center justify-end">
           <ModeToggle 
             isDark={isDarkMode} 
             onToggle={toggleDarkMode} 
           />
-          <span className="text-base">🌙</span>
         </div>
 
         {/* Collapsible Self-Hypnosis Guide */}
@@ -413,72 +421,78 @@ export default function AffirmationsPage() {
 
         {/* Collapsible Category Selection */}
         <div className="bg-white shadow-lg rounded-2xl p-6 dark:bg-gray-800">
-          <button
-            className="w-full flex justify-between items-center"
-            onClick={() => setIsCategoryVisible(!isCategoryVisible)}
-          >
+          <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Choose Category
+              Affirmations
             </h2>
-            <span className="text-2xl text-gray-600 dark:text-gray-300">
-              {isCategoryVisible ? '−' : '+'}
-            </span>
-          </button>
+            <Button
+              variant="outline"
+              onClick={() => setShowWorkshop(!showWorkshop)}
+            >
+              {showWorkshop ? 'View Categories' : 'Create Your Own'}
+            </Button>
+          </div>
 
-          {isCategoryVisible && (
-            <div className="mt-4 space-y-4">
-              <Select 
-                value={selectedCategory} 
-                onValueChange={(category) => {
-                  setSelectedCategory(category);
-                  handleCategoryChange(category);
-                  setShowAffirmations(true);
-                }}
+          {showWorkshop ? (
+            <AffirmationWorkshop />
+          ) : (
+            <>
+              <button
+                className="w-full flex justify-between items-center"
+                onClick={() => setIsCategoryVisible(!isCategoryVisible)}
               >
-                <SelectTrigger className="h-12 text-base">
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" className="h-12 text-base">All Categories</SelectItem>
-                  {affirmationCategories.map((category) => (
-                    <SelectItem 
-                      key={category.id}
-                      value={category.id}
-                      className="h-12 text-base"
-                    >
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="create" className="h-12 text-base">
-                    Create Your Own Affirmation
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  Choose Category
+                </h3>
+                <span className="text-2xl text-gray-600 dark:text-gray-300">
+                  {isCategoryVisible ? '−' : '+'}
+                </span>
+              </button>
 
-              {/* Show either workshop or affirmations based on selection */}
-              {selectedCategory === "create" ? (
-                <AffirmationWorkshop />
-              ) : (
-                showAffirmations && (
-                  <div className="space-y-3">
-                    {currentAffirmations.map((affirmation, index) => (
-                      <div
-                        key={index}
-                        className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-base leading-relaxed"
-                      >
-                        {affirmation}
-                      </div>
-                    ))}
-                    <Button 
-                      onClick={() => handleCategoryChange(selectedCategory)}
-                      className="w-full"
-                    >
-                      Generate New Affirmations
-                    </Button>
-                  </div>
-                )
+              {isCategoryVisible && (
+                <div className="mt-4 space-y-4">
+                  <Select 
+                    value={selectedCategory} 
+                    onValueChange={(category) => {
+                      setSelectedCategory(category);
+                      handleCategoryChange(category);
+                      setShowAffirmations(true);
+                    }}
+                  >
+                    <SelectTrigger className="h-12 text-base">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="h-12 text-base">
+                        All Categories
+                      </SelectItem>
+                      {affirmationCategories.map((category) => (
+                        <SelectItem 
+                          key={category.id}
+                          value={category.id}
+                          className="h-12 text-base"
+                        >
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {showAffirmations && (
+                    <div className="space-y-3">
+                      {currentAffirmations.map((affirmation, index) => (
+                        <div
+                          key={index}
+                          className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-base leading-relaxed"
+                        >
+                          {affirmation}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
         </div>
 

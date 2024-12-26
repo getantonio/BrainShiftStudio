@@ -81,6 +81,7 @@ export default function AudioWaveform({
  const [currentTime, setCurrentTime] = useState(0);
  const animationFrameRef = useRef<number | null>(null);
  const [duration, setDuration] = useState(0);
+ const [internalVolume, setInternalVolume] = useState(volume);
 
  const drawWaveform = useCallback((buffer: AudioBuffer, trimStartPos = 0, trimEndPos = 100, playbackPosition = -1) => {
    const canvas = canvasRef.current;
@@ -283,8 +284,9 @@ export default function AudioWaveform({
  }, [audioUrl, drawWaveform, trimStart, trimEnd]);
 
  useEffect(() => {
+   setInternalVolume(volume);
    if (audioRef.current) {
-     audioRef.current.volume = Math.max(0, Math.min(1, volume || 0));
+     audioRef.current.volume = volume;
    }
  }, [volume]);
 
@@ -360,23 +362,24 @@ export default function AudioWaveform({
                min="0"
                max="1"
                step="0.01"
-               value={volume}
+               value={internalVolume}
                onChange={(e) => {
                  const newVolume = parseFloat(e.target.value);
-                 if (onVolumeChange) {
-                   onVolumeChange(newVolume);
-                 }
+                 setInternalVolume(newVolume);
                  if (audioRef.current) {
                    audioRef.current.volume = newVolume;
+                 }
+                 if (onVolumeChange) {
+                   onVolumeChange(newVolume);
                  }
                }}
                className="flex-1 h-2 accent-blue-500 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
                style={{
-                 background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${volume * 100}%, #e5e7eb ${volume * 100}%, #e5e7eb 100%)`
+                 background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${internalVolume * 100}%, #e5e7eb ${internalVolume * 100}%, #e5e7eb 100%)`
                }}
              />
              <span className="w-32 text-sm font-mono">
-               {formatVolume(volume)}
+               {formatVolume(internalVolume)}
              </span>
            </div>
          </div>
