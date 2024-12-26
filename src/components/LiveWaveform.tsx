@@ -10,16 +10,34 @@ export function LiveWaveform({ isRecording }: LiveWaveformProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
 
   useEffect(() => {
     if (isRecording) {
-      navigator.mediaDevices.getUserMedia({ audio: true })
+      navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: false,
+          sampleRate: 48000
+        } 
+      })
         .then(stream => {
           const audioContext = new AudioContext();
           const source = audioContext.createMediaStreamSource(stream);
           const analyser = audioContext.createAnalyser();
+          const gain = audioContext.createGain();
+          
+          // Configure analyser for better visualization
           analyser.fftSize = 2048;
-          source.connect(analyser);
+          analyser.smoothingTimeConstant = 0.2;
+          
+          // Boost the signal
+          gain.gain.value = 2.5;
+          
+          source.connect(gain);
+          gain.connect(analyser);
+          gainRef.current = gain;
           analyserRef.current = analyser;
 
           const drawWaveform = () => {
@@ -30,8 +48,8 @@ export function LiveWaveform({ isRecording }: LiveWaveformProps) {
             if (!ctx) return;
 
             const bufferLength = analyserRef.current.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-            analyserRef.current.getByteTimeDomainData(dataArray);
+            const dataArray = new Float32Array(bufferLength);
+            analyserRef.current.getFloatTimeDomainData(dataArray);
 
             ctx.fillStyle = '#1f3461';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -43,9 +61,19 @@ export function LiveWaveform({ isRecording }: LiveWaveformProps) {
             const sliceWidth = canvas.width / bufferLength;
             let x = 0;
 
+            // Find max amplitude in this frame
+            let maxAmp = 0;
             for (let i = 0; i < bufferLength; i++) {
-              const v = dataArray[i] / 128.0;
-              const y = v * (canvas.height / 2);
+              const amp = Math.abs(dataArray[i]);
+              if (amp > maxAmp) maxAmp = amp;
+            }
+
+            // Dynamic scaling based on input level
+            const scale = Math.min(2, Math.max(1, 1 / maxAmp));
+
+            for (let i = 0; i < bufferLength; i++) {
+              const v = dataArray[i] * scale;
+              const y = (0.5 + v * 0.5) * canvas.height;
 
               if (i === 0) {
                 ctx.moveTo(x, y);
@@ -71,6 +99,9 @@ export function LiveWaveform({ isRecording }: LiveWaveformProps) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
       }
+      if (gainRef.current) {
+        gainRef.current.disconnect();
+      }
     };
   }, [isRecording]);
 
@@ -78,8 +109,8 @@ export function LiveWaveform({ isRecording }: LiveWaveformProps) {
     <canvas
       ref={canvasRef}
       width={800}
-      height={200}
-      className="w-full h-[200px] rounded-lg bg-[#1f3461]"
+      height={65}
+      className="w-full h-[65px] rounded-lg bg-[#1f3461]"
     />
   );
 } 

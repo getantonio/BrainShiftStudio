@@ -301,6 +301,11 @@ export default function AudioWaveform({
    };
  }, []);
 
+ const formatVolume = (vol: number) => {
+   const db = 20 * Math.log10(vol);
+   return `${Math.round(vol * 100)}% (${db.toFixed(1)} dB)`;
+ };
+
  return (
    <div className="relative">
      <canvas
@@ -347,26 +352,33 @@ export default function AudioWaveform({
              )}
            </div>
          </div>
-         <div className="flex items-center space-x-2">
-           <span>Volume:</span>
-           <input
-             type="range"
-             min="0"
-             max="1"
-             step="0.1"
-             value={volume}
-             onChange={(e) => {
-               const newVolume = parseFloat(e.target.value);
-               if (audioRef.current) {
-                 audioRef.current.volume = newVolume;
-               }
-               if (onVolumeChange) {
-                 onVolumeChange(newVolume);
-               }
-             }}
-             className="flex-1 accent-blue-500"
-           />
-           <span>{Math.round(volume * 100)}%</span>
+         <div className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+           <span className="text-base">Volume:</span>
+           <div className="flex-1 flex items-center space-x-2">
+             <input
+               type="range"
+               min="0"
+               max="1"
+               step="0.01"
+               value={volume}
+               onChange={(e) => {
+                 const newVolume = parseFloat(e.target.value);
+                 if (onVolumeChange) {
+                   onVolumeChange(newVolume);
+                 }
+                 if (audioRef.current) {
+                   audioRef.current.volume = newVolume;
+                 }
+               }}
+               className="flex-1 h-2 accent-blue-500 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+               style={{
+                 background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${volume * 100}%, #e5e7eb ${volume * 100}%, #e5e7eb 100%)`
+               }}
+             />
+             <span className="w-32 text-sm font-mono">
+               {formatVolume(volume)}
+             </span>
+           </div>
          </div>
        </div>
      )}

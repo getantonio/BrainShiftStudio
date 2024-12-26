@@ -3,8 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import AudioWaveform from "@/components/AudioWaveform";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { TrashIcon } from "lucide-react";
+import { TrashIcon, ChevronDown, ChevronRight } from "lucide-react";
 import { getRandomAffirmations } from "@/utils/affirmationUtils";
 import { affirmationCategories } from "@/data/affirmations";
 import {
@@ -16,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import { useAudio } from "@/contexts/AudioContext";
 import { LiveWaveform } from "@/components/LiveWaveform";
+import { ModeToggle } from "@/components/ui/mode-toggle";
+import { AffirmationWorkshop } from "@/components/AffirmationWorkshop";
 
 const DARK_MODE_CLASS = "dark";
 
@@ -108,6 +109,11 @@ const SELF_HYPNOSIS_GUIDE: GuideSection[] = [
   }
 ];
 
+const formatVolume = (vol: number) => {
+  const db = 20 * Math.log10(vol);
+  return `${Math.round(vol * 100)}% (${db.toFixed(1)} dB)`;
+};
+
 export default function AffirmationsPage() {
   // Audio states
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -139,6 +145,12 @@ export default function AffirmationsPage() {
   // Add new state for collapsed playlists
   const [collapsedPlaylists, setCollapsedPlaylists] = useState<Set<string>>(new Set());
 
+  // Add state for playlist selection
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string>('');
+
+  // Add drag state
+  const [draggedTrack, setDraggedTrack] = useState<{id: string, playlistId: string} | null>(null);
+
   const toggleDarkMode = () => {
     setIsDarkMode((prev) => {
       const newValue = !prev;
@@ -153,8 +165,17 @@ export default function AffirmationsPage() {
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: false,
+          sampleRate: 48000
+        } 
+      });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -166,7 +187,6 @@ export default function AffirmationsPage() {
       setIsRecording(true);
       setRecordingTime(0);
       
-      // Start timer
       recordingTimerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
@@ -205,7 +225,20 @@ export default function AffirmationsPage() {
   };
 
   const saveToPlaylist = () => {
-    if (audioUrl && recordingName) {
+    if (!audioUrl || !recordingName || !selectedPlaylistId) {
+      alert('Please select a playlist and enter a name');
+      return;
+    }
+
+    const audio = new Audio(audioUrl);
+    audio.addEventListener('loadedmetadata', () => {
+      const duration = audio.duration;
+      if (isNaN(duration) || !isFinite(duration)) {
+        console.error('Invalid audio duration');
+        alert('Error saving audio. Please try recording again.');
+        return;
+      }
+
       fetch(audioUrl)
         .then(res => res.blob())
         .then(blob => {
@@ -215,44 +248,33 @@ export default function AffirmationsPage() {
             const newTrack = {
               id: crypto.randomUUID(),
               name: recordingName,
-              url: base64data
+              url: base64data,
+              duration: duration
             };
 
-            // If no playlists exist, create a default one
-            if (playlists.length === 0) {
-              const newPlaylist = {
-                id: crypto.randomUUID(),
-                name: "My Playlist",
-                tracks: [newTrack],
-                isLooping: false,
-                volume: 1
-              };
-              setPlaylists([newPlaylist]);
-            } else {
-              // Add to the first playlist by default
-              const updatedPlaylists = playlists.map((playlist, index) => {
-                if (index === 0) {
-                  return {
-                    ...playlist,
-                    tracks: [...playlist.tracks, newTrack]
-                  };
-                }
-                return playlist;
-              });
-              setPlaylists(updatedPlaylists);
-            }
+            setPlaylists(playlists.map(p => 
+              p.id === selectedPlaylistId ? {
+                ...p,
+                tracks: [...p.tracks, newTrack]
+              } : p
+            ));
             setAudioUrl(null);
-            setRecordingName("");
+            setRecordingName('');
+            setSelectedPlaylistId('');
           };
           reader.readAsDataURL(blob);
         });
-    }
+    });
   };
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
-    const newAffirmations = getRandomAffirmations(category, 5);
-    setCurrentAffirmations(newAffirmations);
+    if (category !== "create") {
+      const newAffirmations = getRandomAffirmations(category, 5);
+      setCurrentAffirmations(newAffirmations);
+    } else {
+      setCurrentAffirmations([]); // Clear affirmations when switching to workshop
+    }
   };
 
   useEffect(() => {
@@ -336,10 +358,9 @@ export default function AffirmationsPage() {
         {/* Dark Mode Toggle - Increased touch target */}
         <div className="flex items-center justify-end space-x-3">
           <span className="text-base">🌞</span>
-          <Switch
-            checked={isDarkMode}
-            onCheckedChange={toggleDarkMode}
-            className="h-7 w-14" // Adjusted size for better proportions
+          <ModeToggle 
+            isDark={isDarkMode} 
+            onToggle={toggleDarkMode} 
           />
           <span className="text-base">🌙</span>
         </div>
@@ -421,28 +442,41 @@ export default function AffirmationsPage() {
                   <SelectItem value="all" className="h-12 text-base">All Categories</SelectItem>
                   {affirmationCategories.map((category) => (
                     <SelectItem 
-                      key={category.id} 
+                      key={category.id}
                       value={category.id}
                       className="h-12 text-base"
                     >
                       {category.name}
                     </SelectItem>
                   ))}
+                  <SelectItem value="create" className="h-12 text-base">
+                    Create Your Own Affirmation
+                  </SelectItem>
                 </SelectContent>
               </Select>
 
-              {/* Only show affirmations if showAffirmations is true */}
-              {showAffirmations && (
-                <div className="space-y-3">
-                  {currentAffirmations.map((affirmation, index) => (
-                    <div 
-                      key={index}
-                      className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-base leading-relaxed"
+              {/* Show either workshop or affirmations based on selection */}
+              {selectedCategory === "create" ? (
+                <AffirmationWorkshop />
+              ) : (
+                showAffirmations && (
+                  <div className="space-y-3">
+                    {currentAffirmations.map((affirmation, index) => (
+                      <div
+                        key={index}
+                        className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl text-base leading-relaxed"
+                      >
+                        {affirmation}
+                      </div>
+                    ))}
+                    <Button 
+                      onClick={() => handleCategoryChange(selectedCategory)}
+                      className="w-full"
                     >
-                      {affirmation}
-                    </div>
-                  ))}
-                </div>
+                      Generate New Affirmations
+                    </Button>
+                  </div>
+                )
               )}
             </div>
           )}
@@ -493,8 +527,24 @@ export default function AffirmationsPage() {
                     placeholder="Enter recording name"
                     className="flex-1 h-12 px-4 text-base border rounded-xl dark:bg-gray-700"
                   />
+                  <Select
+                    value={selectedPlaylistId}
+                    onValueChange={setSelectedPlaylistId}
+                  >
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Select playlist" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {playlists.map(playlist => (
+                        <SelectItem key={playlist.id} value={playlist.id}>
+                          {playlist.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button 
                     onClick={saveToPlaylist}
+                    disabled={!selectedPlaylistId}
                     className="h-12 px-6 text-base"
                   >
                     Save to Playlist
@@ -576,9 +626,13 @@ export default function AffirmationsPage() {
                     <div className="flex items-center space-x-3">
                       <button
                         onClick={() => togglePlaylistCollapse(playlist.id)}
-                        className="text-xl"
+                        className="text-xl hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full p-1"
                       >
-                        {collapsedPlaylists.has(playlist.id) ? '▶' : '▼'}
+                        {collapsedPlaylists.has(playlist.id) ? (
+                          <ChevronRight className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
                       </button>
                       <h3 className="text-lg font-medium">{playlist.name}</h3>
                       <span className="text-sm text-gray-500">
@@ -606,19 +660,28 @@ export default function AffirmationsPage() {
                       >
                         🔁
                       </button>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={playlist.volume}
-                        onChange={(e) => {
-                          setPlaylists(playlists.map(p => 
-                            p.id === playlist.id ? { ...p, volume: parseFloat(e.target.value) } : p
-                          ));
-                        }}
-                        className="w-20 h-2"
-                      />
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={playlist.volume}
+                          onChange={(e) => {
+                            const newVolume = parseFloat(e.target.value);
+                            setPlaylists(playlists.map(p => 
+                              p.id === playlist.id ? { ...p, volume: newVolume } : p
+                            ));
+                          }}
+                          className="w-24 h-2 accent-blue-500 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                          style={{
+                            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${playlist.volume * 100}%, #e5e7eb ${playlist.volume * 100}%, #e5e7eb 100%)`
+                          }}
+                        />
+                        <span className="w-24 text-xs font-mono">
+                          {formatVolume(playlist.volume)}
+                        </span>
+                      </div>
                       <Button
                         variant="destructive"
                         size="sm"
@@ -633,11 +696,48 @@ export default function AffirmationsPage() {
                   </div>
 
                   {!collapsedPlaylists.has(playlist.id) && (
-                    <div className="mt-3 space-y-1">
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.add('bg-blue-100', 'dark:bg-blue-900');
+                      }}
+                      onDragLeave={(e) => {
+                        e.currentTarget.classList.remove('bg-blue-100', 'dark:bg-blue-900');
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove('bg-blue-100', 'dark:bg-blue-900');
+                        if (draggedTrack && draggedTrack.playlistId !== playlist.id) {
+                          const sourcePlaylist = playlists.find(p => p.id === draggedTrack.playlistId);
+                          const track = sourcePlaylist?.tracks.find(t => t.id === draggedTrack.id);
+                          if (track) {
+                            setPlaylists(playlists.map(p => {
+                              if (p.id === draggedTrack.playlistId) {
+                                return {
+                                  ...p,
+                                  tracks: p.tracks.filter(t => t.id !== draggedTrack.id)
+                                };
+                              }
+                              if (p.id === playlist.id) {
+                                return {
+                                  ...p,
+                                  tracks: [...p.tracks, track]
+                                };
+                              }
+                              return p;
+                            }));
+                          }
+                        }
+                      }}
+                      className="mt-3 space-y-1 transition-colors"
+                    >
                       {playlist.tracks.map((track) => (
                         <div
                           key={track.id}
-                          className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                          draggable
+                          onDragStart={() => setDraggedTrack({ id: track.id, playlistId: playlist.id })}
+                          onDragEnd={() => setDraggedTrack(null)}
+                          className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-move"
                         >
                           <span className="flex-none w-24 truncate text-sm">{track.name}</span>
                           <div className="flex-1 min-w-0">
